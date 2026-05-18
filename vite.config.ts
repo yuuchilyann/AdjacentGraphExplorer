@@ -1,7 +1,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig({
+// Use relative base ('./') for builds so the bundle works under ANY subpath
+// (or domain root) without recompiling — including GitHub Pages project
+// subpaths, regardless of repo name. Dev server stays at '/'.
+export default defineConfig(({ command }) => ({
+  base: command === 'build' ? './' : '/',
   plugins: [react()],
   build: {
     outDir: 'publish',
@@ -12,4 +16,4 @@ export default defineConfig({
     port: 5173,
     open: true,
   },
-});
+}));

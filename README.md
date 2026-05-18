@@ -143,6 +143,23 @@ npm run verify
 UI 上每次 `realizeLayered` 也會做 runtime self-check，LayeredView 標題列
 有 `verified` chip；萬一不符會立刻變橙色 `mismatch`。
 
+## 部署
+
+線上版（GitHub Pages）：<https://yuuchilyann.github.io/AdjacentGraphExplorer/>
+
+設計上使用**相對路徑** (`base: './'` in `vite.config.ts`)，編譯後的
+`publish/index.html` 內部所有資產都是 `./assets/...`，所以：
+
+- 倉庫改名、子目錄搬家、改丟到任何 CDN 都不需要重編
+- 直接把 `publish/` 整個資料夾推到 GitHub Pages 設定的分支即可
+- `public/.nojekyll` 確保 GitHub Pages 不啟用 Jekyll（不會誤略 `_` 開頭的檔）
+
+開發伺服器 (`npm run dev`) 仍走 `/` 根路徑，不影響本地工作流。
+
+> 注意：相對路徑 `./` 適用於沒有 client-side routing 的單頁應用。如果未來
+> 接 React Router 之類的 HTML5 history mode，子路徑進入需要 GitHub Pages
+> 的 404 fallback hack，或改用 HashRouter。
+
 ## 已知限制
 
 - **層數沒做最小化**：使用 cycle 拆 `(a₀ a_k)`+ 每對單獨 Gray-path 共軛

@@ -64,7 +64,7 @@ export function ControlPanel({ n, onChange }: ControlPanelProps) {
 
       {n > N_SOFT_WARN && (
         <Alert severity="warning" sx={{ mt: 2 }}>
-          n = {n} 會產生 {edgeCount} 條邊，bipartite 視圖會非常擁擠，渲染也可能變慢。
+          n = {n} 會產生 {edgeCount} 條邊，bipartite 檢視會非常擁擠，渲染也可能變慢。
         </Alert>
       )}
     </Paper>

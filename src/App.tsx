@@ -5,17 +5,25 @@ import {
   Chip,
   Container,
   Stack,
+  ToggleButton,
+  ToggleButtonGroup,
   Toolbar,
   Typography,
 } from '@mui/material';
 import HubIcon from '@mui/icons-material/Hub';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
+import ShuffleIcon from '@mui/icons-material/Shuffle';
 
 import { ControlPanel } from './components/ControlPanel';
 import { LegalGraphView } from './components/LegalGraphView';
+import { PermutationBuilder } from './components/PermutationBuilder';
 import { buildLegalGraph } from './lib/hypercube';
+
+type ViewMode = 'legal' | 'builder';
 
 export default function App() {
   const [n, setN] = useState(2);
+  const [mode, setMode] = useState<ViewMode>('legal');
   const graph = useMemo(() => buildLegalGraph(n), [n]);
 
   return (
@@ -38,7 +46,37 @@ export default function App() {
       <Container maxWidth="lg" sx={{ py: 4, flexGrow: 1 }}>
         <Stack spacing={3}>
           <ControlPanel n={n} onChange={setN} />
-          <LegalGraphView graph={graph} />
+
+          <Stack
+            direction="row"
+            spacing={2}
+            sx={{ alignItems: 'center', justifyContent: 'center' }}
+          >
+            <ToggleButtonGroup
+              value={mode}
+              exclusive
+              onChange={(_, v: ViewMode | null) => {
+                if (v !== null) setMode(v);
+              }}
+              size="small"
+              color="primary"
+            >
+              <ToggleButton value="legal">
+                <AccountTreeIcon sx={{ mr: 1, fontSize: 18 }} />
+                Adjacent Bipartite Graph
+              </ToggleButton>
+              <ToggleButton value="builder">
+                <ShuffleIcon sx={{ mr: 1, fontSize: 18 }} />
+                Permutation Builder
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Stack>
+
+          {mode === 'legal' ? (
+            <LegalGraphView graph={graph} />
+          ) : (
+            <PermutationBuilder n={n} />
+          )}
         </Stack>
       </Container>
 

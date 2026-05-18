@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   Box,
   Chip,
@@ -9,6 +9,7 @@ import {
   Typography,
 } from '@mui/material';
 import type { LegalEdge, LegalGraph } from '../types';
+import { ExportActions } from './ExportActions';
 
 export type LegalGraphViewProps = {
   graph: LegalGraph;
@@ -22,6 +23,7 @@ export function LegalGraphView({ graph }: LegalGraphViewProps) {
   const { n, states, edges } = graph;
   const [showSelfLoops, setShowSelfLoops] = useState(true);
   const [hover, setHover] = useState<{ side: 'left' | 'right'; index: number } | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
   const isLit = (e: LegalEdge): boolean => {
     if (hover === null) return true;
@@ -102,11 +104,16 @@ export function LegalGraphView({ graph }: LegalGraphViewProps) {
             }
             label="顯示 self-loop"
           />
+          <ExportActions
+            svgRef={svgRef}
+            filename={`adjacent-bipartite-graph-n${n}`}
+          />
         </Stack>
       </Stack>
 
       <Box sx={{ overflow: 'auto', maxWidth: '100%', bgcolor: 'background.default', borderRadius: 1 }}>
         <svg
+          ref={svgRef}
           width={totalW}
           height={totalH}
           viewBox={`0 0 ${totalW} ${totalH}`}
@@ -241,7 +248,7 @@ export function LegalGraphView({ graph }: LegalGraphViewProps) {
       </Box>
 
       <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-        提示：滑鼠移到左欄 |x⟩ 高亮其 outgoing 合法邊 (x → y)；移到右欄 |y⟩ 高亮其 incoming 合法邊 (x → y)。
+        提示：滑鼠移到左欄 |x⟩ 醒目其 outgoing 合法邊 (x → y)；移到右欄 |y⟩ 醒目其 incoming 合法邊 (x → y)。
       </Typography>
     </Paper>
   );

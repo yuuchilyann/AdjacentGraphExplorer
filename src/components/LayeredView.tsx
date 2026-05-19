@@ -29,6 +29,7 @@ import {
 } from '../lib/layered';
 import { ExportActions } from './ExportActions';
 import { QuantumCircuitView } from './QuantumCircuitView';
+import { LearningPanel } from './LearningPanel';
 
 export type LayeredViewProps = {
   mapping: Mapping;
@@ -50,15 +51,25 @@ function strandColor(startIdx: number, total: number): string {
 export function LayeredView({ mapping, n }: LayeredViewProps) {
   const [strategy, setStrategy] = useState<Strategy>('above');
   const [reduced, setReduced] = useState(false);
+  const [walkAware, setWalkAware] = useState(false);
   const canonical = useMemo(
-    () => realizeLayered(mapping, n, strategy),
-    [mapping, n, strategy],
+    () => realizeLayered(mapping, n, strategy, walkAware),
+    [mapping, n, strategy, walkAware],
   );
   const realization = useMemo(
     () => (reduced ? reduceRealization(canonical) : canonical),
     [canonical, reduced],
   );
+  // Anchor-only baseline for the saved-layers indicator (always computed
+  // even when walkAware is on, so the chip can show "saved Δ layers").
+  const anchorBaseline = useMemo(
+    () => (walkAware ? realizeLayered(mapping, n, strategy, false) : canonical),
+    [mapping, n, strategy, walkAware, canonical],
+  );
   const cancelledPairs = (canonical.layers.length - realization.layers.length) / 2;
+  const walkSavedLayers = walkAware
+    ? anchorBaseline.layers.length - canonical.layers.length
+    : 0;
   const totalCols = realization.layers.length + 1;
   const lastStep = Math.max(0, realization.layers.length);
 
@@ -188,16 +199,29 @@ export function LayeredView({ mapping, n }: LayeredViewProps) {
               variant="outlined"
             />
           </Tooltip>
-          <ToggleButtonGroup
-            value={strategy}
-            exclusive
-            size="small"
-            onChange={(_, v: Strategy | null) => v && setStrategy(v)}
-            color="primary"
+          <Tooltip
+            title={
+              canonical.usedGrayPath
+                ? 'Gray-path 走法：Above 走 AND-bridge（低權重）；Below 走 OR-bridge（高權重）。只對 d ≥ 2 的 transposition 有差。'
+                : walkAware && canonical.walkDecomposedCycles === canonical.totalCycles && canonical.totalCycles > 0
+                  ? '本次所有 cycle 都被 Walk-aware 直接吃下，沒有 Gray-path 共軛展開，Above/Below 對結果無影響（已 disabled）。'
+                  : '本次排列無 d ≥ 2 的 transposition，沒有 Gray-path 共軛展開，Above/Below 對結果無影響（已 disabled）。'
+            }
           >
-            <ToggleButton value="above">Above greedy</ToggleButton>
-            <ToggleButton value="below">Below greedy</ToggleButton>
-          </ToggleButtonGroup>
+            <span>
+              <ToggleButtonGroup
+                value={strategy}
+                exclusive
+                size="small"
+                onChange={(_, v: Strategy | null) => v && setStrategy(v)}
+                color="primary"
+                disabled={!canonical.usedGrayPath}
+              >
+                <ToggleButton value="above">Above greedy</ToggleButton>
+                <ToggleButton value="below">Below greedy</ToggleButton>
+              </ToggleButtonGroup>
+            </span>
+          </Tooltip>
           <Tooltip
             title={
               reduced
@@ -219,9 +243,48 @@ export function LayeredView({ mapping, n }: LayeredViewProps) {
               <ToggleButton value="reduced">Reduced</ToggleButton>
             </ToggleButtonGroup>
           </Tooltip>
+          <Tooltip
+            title={
+              walkAware
+                ? '已開啟：若 cycle 成員恰好沿 Hamming-1 walk 排列，直接走相鄰邊，恰 m-1 層。條件式改寫，非搜尋。'
+                : '關閉：每個 cycle 一律用 anchor 展開（cycle[0] 為樞紐 fan out）。'
+            }
+          >
+            <ToggleButton
+              value="walk"
+              size="small"
+              selected={walkAware}
+              onChange={() => setWalkAware((v) => !v)}
+              color="success"
+              sx={{ ml: 0 }}
+            >
+              Walk-aware
+            </ToggleButton>
+          </Tooltip>
+          {walkAware && canonical.walkDecomposedCycles > 0 && (
+            <Tooltip
+              title={`偵測到 ${canonical.walkDecomposedCycles} / ${canonical.totalCycles} 個 cycle 是 Hamming walk，直接以相鄰邊分解。`}
+            >
+              <Chip
+                size="small"
+                label={`walk: ${canonical.walkDecomposedCycles}/${canonical.totalCycles} cycles${walkSavedLayers > 0 ? ` (−${walkSavedLayers}L)` : ''}`}
+                color="success"
+                variant="outlined"
+              />
+            </Tooltip>
+          )}
+          {walkAware && canonical.walkDecomposedCycles === 0 && canonical.totalCycles > 0 && (
+            <Tooltip title="此排列中沒有任一 cycle 是 Hamming walk；walk-aware 對此 case 沒有效益（屬於正常情況）。">
+              <Chip
+                size="small"
+                label={`walk: 0/${canonical.totalCycles} cycles`}
+                variant="outlined"
+              />
+            </Tooltip>
+          )}
           <ExportActions
             svgRef={svgRef}
-            filename={`layered-realization-n${n}-${strategy}${reduced ? '-reduced' : ''}`}
+            filename={`layered-realization-n${n}-${strategy}${walkAware ? '-walk' : ''}${reduced ? '-reduced' : ''}`}
           />
         </Stack>
       </Stack>
@@ -572,6 +635,8 @@ export function LayeredView({ mapping, n }: LayeredViewProps) {
             n={n}
             step={step}
           />
+
+          <LearningPanel realization={realization} n={n} />
         </>
       )}
     </Paper>

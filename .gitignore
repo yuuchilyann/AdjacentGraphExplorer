@@ -19,3 +19,9 @@ pnpm-debug.log*
 
 # Vite
 .vite
+
+# Private / unpublished docs — creative ideas not yet ready for public release.
+# Anything placed under docs/private/ stays local. Also supports a `*.private.md`
+# naming convention for one-off drafts that live alongside public docs.
+docs/private/
+*.private.md

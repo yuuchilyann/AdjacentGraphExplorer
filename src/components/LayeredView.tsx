@@ -202,10 +202,10 @@ export function LayeredView({ mapping, n }: LayeredViewProps) {
           <Tooltip
             title={
               canonical.usedGrayPath
-                ? 'Gray-path 走法：Above 走 AND-bridge（低權重）；Below 走 OR-bridge（高權重）。只對 d ≥ 2 的 transposition 有差。'
+                ? 'Gray-path 走法：Top-down 走 AND-bridge（低權重）；Bottom-up 走 OR-bridge（高權重）。只對 d ≥ 2 的 transposition 有差。'
                 : walkAware && canonical.walkDecomposedCycles === canonical.totalCycles && canonical.totalCycles > 0
-                  ? '本次所有 cycle 都被 Walk-aware 直接吃下，沒有 Gray-path 共軛展開，Above/Below 對結果無影響（已 disabled）。'
-                  : '本次排列無 d ≥ 2 的 transposition，沒有 Gray-path 共軛展開，Above/Below 對結果無影響（已 disabled）。'
+                  ? '本次所有 cycle 都被 Walk-aware 直接吃下，沒有 Gray-path 共軛展開，Top-down/Bottom-up 對結果無影響（已 disabled）。'
+                  : '本次排列無 d ≥ 2 的 transposition，沒有 Gray-path 共軛展開，Top-down/Bottom-up 對結果無影響（已 disabled）。'
             }
           >
             <span>
@@ -217,8 +217,8 @@ export function LayeredView({ mapping, n }: LayeredViewProps) {
                 color="primary"
                 disabled={!canonical.usedGrayPath}
               >
-                <ToggleButton value="above">Above greedy</ToggleButton>
-                <ToggleButton value="below">Below greedy</ToggleButton>
+                <ToggleButton value="above">Top-down</ToggleButton>
+                <ToggleButton value="below">Bottom-up</ToggleButton>
               </ToggleButtonGroup>
             </span>
           </Tooltip>

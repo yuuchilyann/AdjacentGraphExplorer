@@ -230,16 +230,16 @@ export function LayeredView({ mapping, n }: LayeredViewProps) {
             }
           >
             <ToggleButtonGroup
-              value={reduced ? 'reduced' : 'canonical'}
+              value={reduced ? 'reduced' : 'original'}
               exclusive
               size="small"
               onChange={(_, v: string | null) => {
-                if (v === 'canonical') setReduced(false);
+                if (v === 'original') setReduced(false);
                 else if (v === 'reduced') setReduced(true);
               }}
               color="secondary"
             >
-              <ToggleButton value="canonical">Canonical</ToggleButton>
+              <ToggleButton value="original">Original</ToggleButton>
               <ToggleButton value="reduced">Reduced</ToggleButton>
             </ToggleButtonGroup>
           </Tooltip>

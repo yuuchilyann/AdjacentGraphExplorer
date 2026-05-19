@@ -22,10 +22,10 @@
 ### ✅ Peephole involution cancellation（代數恆等式）
 
 - **位置**：`simplifyLayers` in `src/lib/layered.ts`
-- **UI**：`Canonical / Reduced` ToggleButtonGroup（橘色，secondary）
+- **UI**：`Original / Reduced` ToggleButtonGroup（橘色，secondary）
 - **規則**：兩個相同 swap 之間，若中間所有層皆與其 disjoint（無共用端點），
   則可 commute 通過後一起消除。迭代至 fixpoint。
-- **教學軌跡**：預設關閉，保留 canonical 形式，讓學習者看出虛工從哪段
+- **教學軌跡**：預設關閉，保留 Original 形式，讓學習者看出虛工從哪段
   Gray-path 邊界產生。
 
 ### ✅ Walk-aware decomposition（條件式改寫）

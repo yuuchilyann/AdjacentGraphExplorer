@@ -217,6 +217,116 @@ export function realizeLayered(
   };
 }
 
+/**
+ * Two swaps are "the same" if they touch the same unordered pair.
+ * Layers are normalized (smaller index first) so a direct tuple compare suffices.
+ */
+function sameSwap(a: [number, number], b: [number, number]): boolean {
+  return a[0] === b[0] && a[1] === b[1];
+}
+
+/**
+ * Two swaps share at least one endpoint — they do not commute as permutations.
+ * Disjoint swaps (no shared endpoint) commute freely, so an identical swap on
+ * one side can be slid past them to find a cancellation partner.
+ */
+function swapsOverlap(a: [number, number], b: [number, number]): boolean {
+  return a[0] === b[0] || a[0] === b[1] || a[1] === b[0] || a[1] === b[1];
+}
+
+/**
+ * Peephole reduction: every legal 2-cycle is its own inverse, so two equal
+ * swaps cancel. If they are not adjacent but every layer between them is
+ * disjoint (commutes through), we can still cancel the pair. Iterate to
+ * fixpoint.
+ *
+ * Returns the reduced layer list. The original is not mutated.
+ */
+export function simplifyLayers(layers: LayerStep[]): LayerStep[] {
+  const out: LayerStep[] = layers.map((l) => ({
+    swap: [l.swap[0], l.swap[1]] as [number, number],
+  }));
+  let changed = true;
+  while (changed) {
+    changed = false;
+    outer: for (let i = 0; i < out.length - 1; i++) {
+      for (let j = i + 1; j < out.length; j++) {
+        if (!sameSwap(out[i]!.swap, out[j]!.swap)) continue;
+        let commutes = true;
+        for (let k = i + 1; k < j; k++) {
+          if (swapsOverlap(out[i]!.swap, out[k]!.swap)) {
+            commutes = false;
+            break;
+          }
+        }
+        if (commutes) {
+          out.splice(j, 1);
+          out.splice(i, 1);
+          changed = true;
+          break outer;
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Apply `simplifyLayers` to a realization and rebuild trajectories +
+ * verification so all downstream views (wiring diagram, circuit) stay in
+ * sync. The original realization's `alreadyLegal`, `maxDirectDistance`,
+ * `unsupported`, and `strategy` describe the *problem*, not the layer
+ * sequence, so they pass through unchanged.
+ */
+export function reduceRealization(real: LayeredRealization): LayeredRealization {
+  const reducedLayers = simplifyLayers(real.layers);
+  const total = real.trajectories.length;
+
+  const trajectories: number[][] = [];
+  const movedRows = new Set<number>();
+  for (let r = 0; r < total; r++) {
+    const traj = [r];
+    let v = r;
+    for (const layer of reducedLayers) {
+      v = applySwap(v, layer);
+      traj.push(v);
+    }
+    trajectories.push(traj);
+    if (traj[traj.length - 1] !== r) movedRows.add(r);
+  }
+
+  const verification: Verification = { ok: true, mismatches: [], illegalLayers: [] };
+  for (let idx = 0; idx < reducedLayers.length; idx++) {
+    const layer = reducedLayers[idx]!;
+    const d = hammingDistance(layer.swap[0], layer.swap[1]);
+    if (d > 1) {
+      verification.illegalLayers.push({ index: idx, swap: layer.swap, d });
+    }
+  }
+  // Endpoints must still agree with the canonical realization — cancellation
+  // of involution pairs preserves the overall permutation.
+  for (let r = 0; r < total; r++) {
+    const expected = real.trajectories[r]![real.trajectories[r]!.length - 1]!;
+    const actual = trajectories[r]![trajectories[r]!.length - 1]!;
+    if (expected !== actual) {
+      verification.mismatches.push({ source: r, expected, actual });
+    }
+  }
+  verification.ok =
+    verification.mismatches.length === 0 && verification.illegalLayers.length === 0;
+
+  return {
+    strategy: real.strategy,
+    layers: reducedLayers,
+    trajectories,
+    movedRows,
+    alreadyLegal: real.alreadyLegal,
+    maxDirectDistance: real.maxDirectDistance,
+    unsupported: real.unsupported,
+    verification,
+  };
+}
+
 export function formatSwap(layer: LayerStep, n: number): string {
   const [a, b] = layer.swap;
   const fmt = (i: number) =>

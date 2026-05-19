@@ -42,6 +42,18 @@ export type LayeredRealization = {
   unsupported: number[][];
   /** Runtime self-check: every layer legal & every row reaches target. */
   verification: Verification;
+  /** Whether walk-aware decomposition was enabled. */
+  walkAware: boolean;
+  /** Number of cycles successfully decomposed via the walk shortcut. */
+  walkDecomposedCycles: number;
+  /** Total cycles of length ≥ 2 (denominator for the walk hit-rate display). */
+  totalCycles: number;
+  /**
+   * True iff any transposition was expanded via Gray-path (d ≥ 2). When
+   * false, the Above/Below strategy is unobservable — the UI uses this to
+   * disable the strategy toggle.
+   */
+  usedGrayPath: boolean;
 };
 
 function applySwap(value: number, layer: LayerStep): number {
@@ -133,13 +145,60 @@ function decomposeTransposition(
 }
 
 /**
+ * Walk-aware decomposition: if the cycle's listing (or any rotation of it)
+ * has its first m−1 consecutive edges all at Hamming distance 1, the cycle
+ * is realized directly by those m−1 legal swaps.
+ *
+ * Why this works algebraically: the m-cycle (v₀ v₁ … v_{m-1}) as a
+ * permutation equals (v₀ v₁) ∘ (v₁ v₂) ∘ … ∘ (v_{m-2} v_{m-1}) — composition
+ * reads right-to-left, so in our temporal-order layer list the rightmost
+ * factor is applied first. Returns null when no rotation qualifies, leaving
+ * fallback to the anchor-based [[decomposeTransposition]] path.
+ *
+ * This is a conditional rewrite (pattern match), not a search — at most m
+ * rotations are checked and each check is O(m).
+ */
+function tryWalkDecomposition(cycle: number[]): LayerStep[] | null {
+  const m = cycle.length;
+  if (m < 2) return null;
+
+  const tryOrder = (seq: number[]): LayerStep[] | null => {
+    for (let k = 0; k < m - 1; k++) {
+      if (hammingDistance(seq[k]!, seq[k + 1]!) !== 1) return null;
+    }
+    // Temporal order: (v_{m-2}, v_{m-1}) applied first, ..., (v₀, v₁) last.
+    const layers: LayerStep[] = [];
+    for (let k = m - 2; k >= 0; k--) {
+      layers.push({ swap: normSwap(seq[k]!, seq[k + 1]!) });
+    }
+    return layers;
+  };
+
+  // Try every rotation. A "broken walk" with one bad cyclic edge still works
+  // when we rotate that bad edge to the wrap-around (which is unused).
+  for (let r = 0; r < m; r++) {
+    const rotated = r === 0 ? cycle : cycle.slice(r).concat(cycle.slice(0, r));
+    const layers = tryOrder(rotated);
+    if (layers !== null) return layers;
+  }
+  return null;
+}
+
+/**
  * Decompose a target permutation into a temporal sequence of legal 2-cycle
  * layer-permutations.
+ *
+ * `walkAware` (default `false`): for each cycle, first try the walk-shortcut
+ * (`tryWalkDecomposition`) — a *conditional rewrite* that only fires when
+ * the cycle's vertices form a Hamming-1 walk. On miss the cycle falls back
+ * to the standard anchor expansion. The flag does not change the resulting
+ * permutation, only the layer sequence used to realize it.
  */
 export function realizeLayered(
   mapping: Mapping,
   n: number,
   strategy: Strategy,
+  walkAware: boolean = false,
 ): LayeredRealization {
   const total = 1 << n;
   const layers: LayerStep[] = [];
@@ -156,10 +215,26 @@ export function realizeLayered(
   // Cycle-decompose the (possibly partial) permutation.
   const cycles = cycleDecomposition(mapping, n, false);
 
+  let walkDecomposedCycles = 0;
+  let totalCycles = 0;
+  let usedGrayPath = false;
   for (const cycle of cycles) {
     if (cycle.length < 2) continue;
+    totalCycles++;
+
+    // Walk-aware shortcut (conditional rewrite, not search).
+    if (walkAware) {
+      const walkLayers = tryWalkDecomposition(cycle);
+      if (walkLayers !== null) {
+        layers.push(...walkLayers);
+        walkDecomposedCycles++;
+        continue;
+      }
+    }
 
     if (cycle.length === 2) {
+      const d = hammingDistance(cycle[0]!, cycle[1]!);
+      if (d >= 2) usedGrayPath = true;
       layers.push(...decomposeTransposition(cycle[0]!, cycle[1]!, strategy));
       continue;
     }
@@ -168,6 +243,8 @@ export function realizeLayered(
     // Temporal order (applied first to last): (a₀ a₁), (a₀ a₂), ..., (a₀ a_{m-1}).
     const a0 = cycle[0]!;
     for (let k = 1; k < cycle.length; k++) {
+      const d = hammingDistance(a0, cycle[k]!);
+      if (d >= 2) usedGrayPath = true;
       layers.push(...decomposeTransposition(a0, cycle[k]!, strategy));
     }
   }
@@ -214,6 +291,10 @@ export function realizeLayered(
     maxDirectDistance,
     unsupported,
     verification,
+    walkAware,
+    walkDecomposedCycles,
+    totalCycles,
+    usedGrayPath,
   };
 }
 
@@ -324,6 +405,10 @@ export function reduceRealization(real: LayeredRealization): LayeredRealization 
     maxDirectDistance: real.maxDirectDistance,
     unsupported: real.unsupported,
     verification,
+    walkAware: real.walkAware,
+    walkDecomposedCycles: real.walkDecomposedCycles,
+    totalCycles: real.totalCycles,
+    usedGrayPath: real.usedGrayPath,
   };
 }
 

@@ -23,6 +23,7 @@ import Chip from '@mui/material/Chip';
 import type { Mapping } from '../lib/permutation';
 import { formatSwap, realizeLayered, type Strategy } from '../lib/layered';
 import { ExportActions } from './ExportActions';
+import { QuantumCircuitView } from './QuantumCircuitView';
 
 export type LayeredViewProps = {
   mapping: Mapping;
@@ -522,6 +523,12 @@ export function LayeredView({ mapping, n }: LayeredViewProps) {
                 .join(' ∘ ')}
             </Box>
           </Typography>
+
+          <QuantumCircuitView
+            realization={realization}
+            n={n}
+            step={step}
+          />
         </>
       )}
     </Paper>

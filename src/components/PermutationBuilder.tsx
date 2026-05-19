@@ -9,6 +9,8 @@ import {
 } from '@mui/material';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ShuffleIcon from '@mui/icons-material/Shuffle';
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 
 import {
   cycleDecomposition,
@@ -165,6 +167,60 @@ export function PermutationBuilder({ n }: PermutationBuilderProps) {
     setDragPos(null);
   };
 
+  // 隨機完整 bijection（Fisher-Yates）— 通常會含 d ≥ 2 邊，會自動觸發 Layered Realization。
+  const randomizeAny = () => {
+    const arr = Array.from({ length: total }, (_, i) => i);
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j]!, arr[i]!];
+    }
+    const next = new Map<number, number>();
+    for (let i = 0; i < arr.length; i++) next.set(i, arr[i]!);
+    setMapping(next);
+    setSelected(null);
+    setDragPos(null);
+  };
+
+  // 隨機合法 bijection：在超立方體上做隨機完美匹配（每對沿單一座標翻轉），
+  // 保證所有邊 d ≤ 1，即 G_α ⊆ Adjacent Bipartite Graph。
+  const randomizeLegal = () => {
+    const used = new Array<boolean>(total).fill(false);
+    const next = new Map<number, number>();
+    const order = Array.from({ length: total }, (_, i) => i);
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [order[i], order[j]] = [order[j]!, order[i]!];
+    }
+    for (const x of order) {
+      if (used[x]) continue;
+      const bitOrder = Array.from({ length: n }, (_, k) => k);
+      for (let i = bitOrder.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [bitOrder[i], bitOrder[j]] = [bitOrder[j]!, bitOrder[i]!];
+      }
+      let paired = -1;
+      for (const k of bitOrder) {
+        const y = x ^ (1 << k);
+        if (!used[y]) {
+          paired = y;
+          break;
+        }
+      }
+      if (paired === -1) {
+        next.set(x, x);
+        used[x] = true;
+      } else {
+        next.set(x, paired);
+        next.set(paired, x);
+        used[x] = true;
+        used[paired] = true;
+      }
+    }
+    setMapping(next);
+    setSelected(null);
+    setDragPos(null);
+  };
+
   // Pre-compute committed edges (rendered as straight lines).
   const committedEdges = useMemo(() => {
     const arr: Array<{ from: number; to: number }> = [];
@@ -194,6 +250,24 @@ export function PermutationBuilder({ n }: PermutationBuilderProps) {
             color={complete ? 'success' : 'default'}
             label={`進度 ${mapping.size}/${total}`}
           />
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<AutoFixHighIcon />}
+            onClick={randomizeLegal}
+            title="隨機產生 G_α ⊆ Adjacent Bipartite Graph 的合法排列（所有邊 d ≤ 1）"
+          >
+            隨機合法
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<ShuffleIcon />}
+            onClick={randomizeAny}
+            title="隨機產生任意完整排列（通常含 d ≥ 2 邊，會觸發 Layered Realization）"
+          >
+            隨機任意
+          </Button>
           <Button
             size="small"
             startIcon={<RestartAltIcon />}

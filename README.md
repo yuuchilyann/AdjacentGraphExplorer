@@ -2,13 +2,15 @@
 
 互動式探索 **Adjacent Bipartite Graph** 與其上之合法排列（permutation）實現
 的靜態網站。針對 n 個量子位元（n ≥ 0）的計算基底 \|0⟩, \|1⟩, …, \|2ⁿ−1⟩，
-提供三個層次的視覺化：
+提供四個層次的視覺化：
 
 1. **Adjacent Bipartite Graph** — 規範鄰接關係 d(x, y) ≤ 1（單一 bit-flip
    或 identity）的二部圖
 2. **Permutation Builder** — 連連看式互動，把任意目標排列「畫」出來
 3. **Layered Realization** — 自動把含 d ≥ 2 邊的排列分解成多層 legal
    2-cycle，並以 wiring 圖呈現完整路線
+4. **Quantum Circuit** — 把每個 legal layer 轉譯為對應的 (n−1)-controlled
+   X gate，採 MSQ 配置；提供 Mixed control / Positive-only 切換
 
 ## 數學背景（簡述）
 
@@ -49,6 +51,30 @@ legal 2-cycle：
 
 兩種策略產生的目標排列相同，路線不同。
 
+### Quantum Circuit translation
+
+每個 legal layer (a b)（Hamming d = 1）對應一個 (n−1)-controlled X gate：
+
+- 差異位元 q\* = target qubit，畫成 `⊕`
+- 其餘 n−1 個位元為控制端；該位元在 a、b 中的共同值為 1 → **實心黑**
+  positive control，為 0 → **空心白** negative control
+
+線路採 **MSQ** 配置（least-significant qubit 在最下方）：q=0 是底部那條
+wire、q=n−1 是頂部，時間軸由左至右。Wiring diagram 與 quantum circuit
+共用 `step` 狀態，播放控制會同時 highlight 兩張圖中對應的 layer / gate。
+
+**Positive-only mode** 使用 X-共軛恆等式
+
+> `C⁰_q(U) = X_q · C¹_q(U) · X_q`
+
+把每個空心白控制展開為「`X` · positive control · `X`」 —— 每個 layer 從
+1 欄擴展為 3 欄（`[X 前] · [全 positive 多控 X] · [X 後]`），中間欄的所
+有控制端皆為實心黑。這對應真實硬體編譯器（只支援 positive control）的
+標準展開，每個空心白多付 2 個 X gate 的成本。
+
+> 符號慣例：`[X]` 方框專用於無條件單比特 NOT；`⊕` 專用於受控閘的
+> target（必定掛在 control 線上）。兩者不互換。
+
 ## 主要功能
 
 | 視圖 | 互動 |
@@ -56,6 +82,7 @@ legal 2-cycle：
 | Adjacent Bipartite Graph | hover 左欄高亮 outgoing 合法邊；hover 右欄高亮 incoming；切換 self-loop |
 | Permutation Builder | 點兩下 / 拖曳連線；藍邊 = legal、橙邊 = 需要分層、紅 = 衝突 silent-snap；即時 cycle 表示 |
 | Layered Realization | 多欄 wiring 圖；每條 strand 一個色；step prev/next/play/pause；Above ↔ Below 切換；runtime verification chip |
+| Quantum Circuit | MSQ 配置（\|x₀⟩ 在最下）；layer → 多控 X gate；Mixed control ↔ Positive-only 切換；active gate 與 wiring 同步 highlight |
 
 控制面板：n 由 TextField + Slider 雙向綁定（0 ≤ n ≤ 10，n > 6 提示視圖會
 擁擠）。
@@ -119,7 +146,8 @@ AdjacentGraphExplorer/
       ├─ ControlPanel.tsx     # n 控制
       ├─ LegalGraphView.tsx   # Adjacent Bipartite Graph 視圖
       ├─ PermutationBuilder.tsx  # 連連看 Builder
-      └─ LayeredView.tsx      # Wiring diagram + 動畫控制
+      ├─ LayeredView.tsx      # Wiring diagram + 動畫控制（嵌入 QuantumCircuitView）
+      └─ QuantumCircuitView.tsx  # 量子電路（MSQ + Mixed/Positive-only）
 ```
 
 ## 正確性驗證

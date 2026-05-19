@@ -52,7 +52,10 @@ export function LayeredView({ mapping, n }: LayeredViewProps) {
   const lastStep = Math.max(0, realization.layers.length);
 
   // Step controls. Default to the final state so the wiring is fully visible.
-  const [step, setStep] = useState(lastStep);
+  const [stepRaw, setStep] = useState(lastStep);
+  // Clamp during render: when `realization` changes (e.g. randomized permutation),
+  // the reset effect hasn't fired yet, so a stale step could index past `layers`.
+  const step = Math.min(stepRaw, lastStep);
   const [playing, setPlaying] = useState(false);
   const [hoverStrand, setHoverStrand] = useState<number | null>(null);
   const timer = useRef<number | null>(null);

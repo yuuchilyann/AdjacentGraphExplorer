@@ -64,10 +64,10 @@ export function LearningPanel({ realization, n }: LearningPanelProps) {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             m-cycle 可寫為：
           </Typography>
-          <Math display tex={`(a_0\\ a_1\\ \\cdots\\ a_{m-1}) = (a_0\\ a_1) \\circ (a_0\\ a_2) \\circ \\cdots \\circ (a_0\\ a_{m-1})`} />
+          <Math display tex={`(a_0\\ a_1\\ \\cdots\\ a_{m-1}) = (a_1\\ a_0) \\circ (a_2\\ a_0) \\circ \\cdots \\circ (a_{m-1}\\ a_0)`} />
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             注意這裡每個 <Math tex="(a_0\ a_k)" /> 的 Hamming 距離 <Math tex="d(a_0, a_k)" /> 可能大於 1，
-            這時還需要進一步 Gray-path 展開（見 §3）。本算法的「Above / Below」toggle 是在
+            這時還需要進一步 Gray-path 展開（見 §3）。本算法的「Top-down / Bottom-up」toggle 是在
             選擇 Gray-path 的走法。
           </Typography>
         </AccordionDetails>

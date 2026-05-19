@@ -52,12 +52,13 @@
 **工程成本**：低。`realizeLayered` 內 cycle 處理段加一個 minimization
 迴圈即可。
 
-**UI 整合**：與 Above/Below 並列為「anchor 選擇」軸（vs Gray-path 走法軸），
-或作為一顆 modifier toggle。
+**UI 整合**：與 Top-down/Bottom-up 並列為「anchor 選擇」軸（vs Gray-path
+走法軸），或作為一顆 modifier toggle。
 
-### Per-transposition Above/Below mixing（搜尋型）
+### Per-transposition Top-down/Bottom-up mixing（搜尋型）
 
-**現狀**：Above/Below 是全域 toggle，整個排列共用一個 Gray-path 走法。
+**現狀**：Top-down/Bottom-up 是全域 toggle，整個排列共用一個 Gray-path
+走法。
 
 **想法**：允許每個 transposition 各自選 above/below，在 cycle decomposition
 邊界爭取更多 Gray-path 邊界重合 → 更多自然抵消。組合空間 2^k 需啟發式
@@ -67,7 +68,7 @@
 
 **工程成本**：中。需要設計剪枝啟發式（greedy local-search 或 DP-on-cycles）。
 
-**UI 整合**：新增第三個值 `Mixed`（auto）到現有 Above/Below toggle，
+**UI 整合**：新增第三個值 `Mixed`（auto）到現有 Top-down/Bottom-up toggle，
 或開另一顆「Optimize boundary cancellation」開關。
 
 ### Parallel disjoint swaps per layer（深度最佳化）

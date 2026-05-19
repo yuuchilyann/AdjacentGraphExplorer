@@ -12,6 +12,13 @@ import {
   type Mapping,
 } from './permutation';
 
+/**
+ * Internal Gray-path strategy values. UI labels rename them as:
+ *   'above' → "Top-down"
+ *   'below' → "Bottom-up"
+ * The internal identifiers are kept for export filenames, log output, and
+ * algorithm docstrings that reference the AND/OR-bridge selection logic.
+ */
 export type Strategy = 'above' | 'below';
 
 /** One layer of the realization: a single legal transposition (d ≤ 1). */
@@ -50,7 +57,7 @@ export type LayeredRealization = {
   totalCycles: number;
   /**
    * True iff any transposition was expanded via Gray-path (d ≥ 2). When
-   * false, the Above/Below strategy is unobservable — the UI uses this to
+   * false, the Top-down/Bottom-up strategy is unobservable — the UI uses this to
    * disable the strategy toggle.
    */
   usedGrayPath: boolean;

@@ -21,7 +21,12 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import Chip from '@mui/material/Chip';
 
 import type { Mapping } from '../lib/permutation';
-import { formatSwap, realizeLayered, type Strategy } from '../lib/layered';
+import {
+  formatSwap,
+  realizeLayered,
+  reduceRealization,
+  type Strategy,
+} from '../lib/layered';
 import { ExportActions } from './ExportActions';
 import { QuantumCircuitView } from './QuantumCircuitView';
 
@@ -44,10 +49,16 @@ function strandColor(startIdx: number, total: number): string {
 
 export function LayeredView({ mapping, n }: LayeredViewProps) {
   const [strategy, setStrategy] = useState<Strategy>('above');
-  const realization = useMemo(
+  const [reduced, setReduced] = useState(false);
+  const canonical = useMemo(
     () => realizeLayered(mapping, n, strategy),
     [mapping, n, strategy],
   );
+  const realization = useMemo(
+    () => (reduced ? reduceRealization(canonical) : canonical),
+    [canonical, reduced],
+  );
+  const cancelledPairs = (canonical.layers.length - realization.layers.length) / 2;
   const totalCols = realization.layers.length + 1;
   const lastStep = Math.max(0, realization.layers.length);
 
@@ -144,7 +155,15 @@ export function LayeredView({ mapping, n }: LayeredViewProps) {
           <Typography variant="body2" color="text.secondary">
             每欄是固定的 \|0⟩..\|2ⁿ-1⟩ 軌道；每條 strand 起點代表 source 的某個 \|x⟩，
             沿著各 layer 在軌道間穿梭，終點即為 α(\|x⟩)。共 {realization.layers.length}{' '}
-            層 legal 2-cycle（max direct d = {realization.maxDirectDistance}）。
+            層 legal 2-cycle（max direct d = {realization.maxDirectDistance}）
+            {reduced && cancelledPairs > 0 ? (
+              <>
+                {' '}— 已消去 {cancelledPairs} 對 involution 虛工（原 {canonical.layers.length} 層）
+              </>
+            ) : reduced ? (
+              <> — 無可消去的虛工</>
+            ) : null}
+            。
           </Typography>
         </Box>
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
@@ -179,9 +198,30 @@ export function LayeredView({ mapping, n }: LayeredViewProps) {
             <ToggleButton value="above">Above greedy</ToggleButton>
             <ToggleButton value="below">Below greedy</ToggleButton>
           </ToggleButtonGroup>
+          <Tooltip
+            title={
+              reduced
+                ? '已開啟：相鄰（或可交換通過的）同 swap 對會自動相消，顯示最短化序列。'
+                : '關閉：顯示算法原始輸出（含可能的 involution 虛工，方便看出分解來源）。'
+            }
+          >
+            <ToggleButtonGroup
+              value={reduced ? 'reduced' : 'canonical'}
+              exclusive
+              size="small"
+              onChange={(_, v: string | null) => {
+                if (v === 'canonical') setReduced(false);
+                else if (v === 'reduced') setReduced(true);
+              }}
+              color="secondary"
+            >
+              <ToggleButton value="canonical">Canonical</ToggleButton>
+              <ToggleButton value="reduced">Reduced</ToggleButton>
+            </ToggleButtonGroup>
+          </Tooltip>
           <ExportActions
             svgRef={svgRef}
-            filename={`layered-realization-n${n}-${strategy}`}
+            filename={`layered-realization-n${n}-${strategy}${reduced ? '-reduced' : ''}`}
           />
         </Stack>
       </Stack>

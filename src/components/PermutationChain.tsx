@@ -5,9 +5,12 @@ import {
   ButtonGroup,
   Chip,
   Divider,
+  FormControlLabel,
   IconButton,
   Paper,
   Stack,
+  Switch,
+  ToggleButton,
   Tooltip,
   Typography,
 } from '@mui/material';
@@ -44,7 +47,7 @@ const COLOR_TAKEN = '#c62828';
 const COLOR_HOVER_BG = 'rgba(237, 108, 2, 0.12)';
 
 const MIN_STAGES = 1; // 1 transition = 2 columns (degenerates to single PermutationBuilder)
-const MAX_STAGES = 5; // 5 transitions = 6 columns
+const MAX_STAGES = 9; // 9 transitions = 10 columns (purely a UX safeguard, not an algorithmic limit)
 
 type Selected = { col: number; idx: number } | null;
 
@@ -71,6 +74,8 @@ export function PermutationChain({ n }: PermutationChainProps) {
   ]);
   const [selected, setSelected] = useState<Selected>(null);
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
+  const [showPerStageLayered, setShowPerStageLayered] = useState(false);
+  const [pathAware, setPathAware] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
 
   // Reset whenever n changes.
@@ -134,6 +139,44 @@ export function PermutationChain({ n }: PermutationChainProps) {
     if (selected === null) return new Set<number>();
     return new Set(legalTargetsFor(selected.idx, n));
   }, [selected, n]);
+
+  // ----- Path-aware column ordering (Feature 3) -----
+  // When all stages are complete (composite !== null) and the user toggles
+  // pathAware on, re-sort each non-source column so row r in column c shows
+  // the index that resulted from following the path from row r in column 0.
+  // This makes every strand visually horizontal/straight at the cost of
+  // making "which row holds |x⟩ in column c?" no longer predictable.
+  const effectivePathAware = pathAware && composite !== null;
+  const pathOrdering = useMemo<number[][]>(() => {
+    if (!effectivePathAware) {
+      // Identity: row r ↔ index r in every column.
+      return Array.from({ length: cols }, () =>
+        Array.from({ length: total }, (_, r) => r),
+      );
+    }
+    const out: number[][] = [Array.from({ length: total }, (_, r) => r)];
+    for (let c = 1; c < cols; c++) {
+      const prev = out[c - 1]!;
+      const m = mappings[c - 1]!;
+      out.push(prev.map((idx) => m.get(idx) ?? idx));
+    }
+    return out;
+  }, [effectivePathAware, mappings, cols, total]);
+  const rowOfIndexPerCol = useMemo<Map<number, number>[]>(() => {
+    return pathOrdering.map((arr) => {
+      const m = new Map<number, number>();
+      arr.forEach((idx, r) => m.set(idx, r));
+      return m;
+    });
+  }, [pathOrdering]);
+  /** y-coordinate of index `idx` as it appears in column `c`. */
+  const yForCol = (c: number, idx: number): number => {
+    const row = rowOfIndexPerCol[c]?.get(idx);
+    return yFor(row ?? idx);
+  };
+  /** Translate a drop point's row (in column `c`) back to the underlying index. */
+  const indexAtRowInCol = (c: number, row: number): number =>
+    pathOrdering[c]?.[row] ?? row;
 
   const svgPoint = (clientX: number, clientY: number) => {
     const svg = svgRef.current;
@@ -235,7 +278,7 @@ export function PermutationChain({ n }: PermutationChainProps) {
       setStageMapping(c, next);
     }
     setSelected({ col: c, idx: i });
-    setDragPos({ x: colRightConnX(c), y: yFor(i) });
+    setDragPos({ x: colRightConnX(c), y: yForCol(c, i) });
   };
 
   const handleSvgMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -251,7 +294,9 @@ export function PermutationChain({ n }: PermutationChainProps) {
     // Commit only if released in the next column.
     const targetCol = colFromX(p.x);
     if (targetCol === selected.col + 1) {
-      const intended = rowFromY(p.y);
+      // Translate row at the drop point back to the underlying index. In
+      // path-aware mode the column's row order is permuted from default.
+      const intended = indexAtRowInCol(targetCol, rowFromY(p.y));
       commitFromIntended(selected.col, selected.idx, intended);
       setSelected(null);
     }
@@ -337,6 +382,19 @@ export function PermutationChain({ n }: PermutationChainProps) {
   };
   const randomizeAllAny = () => {
     setMappings(Array.from({ length: stages }, () => randomAnyOne()));
+    setSelected(null);
+    setDragPos(null);
+  };
+  // Per-stage helpers (Feature 2). Random uses the legal policy because
+  // ad-hoc per-stage retries are usually exploratory — if the user wants a
+  // d ≥ 2 stage they can still snap it manually or use the global random-any.
+  const randomizeStage = (stage: number) => {
+    setStageMapping(stage, randomLegalOne());
+    setSelected(null);
+    setDragPos(null);
+  };
+  const clearStage = (stage: number) => {
+    setStageMapping(stage, new Map<number, number>());
     setSelected(null);
     setDragPos(null);
   };
@@ -488,6 +546,29 @@ export function PermutationChain({ n }: PermutationChainProps) {
             清除
           </Button>
         </Stack>
+
+        <Tooltip
+          title={
+            composite === null
+              ? '需所有段完成才能依路徑排序（避免欄內列重複/缺漏）'
+              : pathAware
+                ? '已開啟：第 c ≥ 1 欄的列順序依「α_{c-1} 的輸出」排，strand 變直線；代價是欄內 ket 不再可預測位置'
+                : '關閉：每欄都用 0..2ⁿ-1 預設順序，欄內 ket 位置可預測，但 strand 會交叉'
+          }
+        >
+          <span>
+            <ToggleButton
+              value="path-aware"
+              size="small"
+              selected={effectivePathAware}
+              onChange={() => setPathAware((v) => !v)}
+              disabled={composite === null}
+              color="success"
+            >
+              依路徑排序
+            </ToggleButton>
+          </span>
+        </Tooltip>
       </Stack>
 
       <SvgViewport
@@ -555,9 +636,9 @@ export function PermutationChain({ n }: PermutationChainProps) {
                   <line
                     key={`hint-${sc}-${t}`}
                     x1={colRightConnX(sc)}
-                    y1={yFor(selected.idx)}
+                    y1={yForCol(sc, selected.idx)}
                     x2={colLeftConnX(sc + 1)}
-                    y2={yFor(t)}
+                    y2={yForCol(sc + 1, t)}
                     stroke={stroke}
                     strokeOpacity={isLegal ? 0.22 : 0.1}
                     strokeWidth={1}
@@ -575,9 +656,9 @@ export function PermutationChain({ n }: PermutationChainProps) {
                 <line
                   key={`c-${stage}-${e.from}`}
                   x1={colRightConnX(stage)}
-                  y1={yFor(e.from)}
+                  y1={yForCol(stage, e.from)}
                   x2={colLeftConnX(stage + 1)}
-                  y2={yFor(e.to)}
+                  y2={yForCol(stage + 1, e.to)}
                   stroke={far ? COLOR_COMMITTED_FAR : COLOR_COMMITTED}
                   strokeWidth={1.6}
                   strokeOpacity={0.9}
@@ -591,7 +672,7 @@ export function PermutationChain({ n }: PermutationChainProps) {
           {selected !== null && dragPos && (
             <line
               x1={colRightConnX(selected.col)}
-              y1={yFor(selected.idx)}
+              y1={yForCol(selected.col, selected.idx)}
               x2={dragPos.x}
               y2={dragPos.y}
               stroke={COLOR_PREVIEW}
@@ -600,13 +681,15 @@ export function PermutationChain({ n }: PermutationChainProps) {
             />
           )}
 
-          {/* Column labels (interactive) */}
+          {/* Column labels (interactive). Iterate rows (not indices) so that
+              path-aware mode renders nodes at the permuted row positions. */}
           {Array.from({ length: cols }, (_, c) => {
             const isLeftmost = c === 0;
             const isRightmost = c === stages;
             const stageOut = c; // mapping index for outgoing edges
             const stageIn = c - 1; // mapping index for incoming edges
-            return Array.from({ length: total }, (_, i) => {
+            return Array.from({ length: total }, (_, row) => {
+              const i = indexAtRowInCol(c, row);
               // For each node, decide colors based on outgoing role (source for stage c).
               const isSelected =
                 selected !== null && selected.col === c && selected.idx === i;
@@ -661,7 +744,7 @@ export function PermutationChain({ n }: PermutationChainProps) {
 
               return (
                 <g
-                  key={`N-${c}-${i}`}
+                  key={`N-${c}-${row}`}
                   style={{ cursor: 'pointer' }}
                   onMouseDown={() =>
                     !isRightmost && handleNodeMouseDown(c, i)
@@ -670,7 +753,7 @@ export function PermutationChain({ n }: PermutationChainProps) {
                 >
                   <rect
                     x={colCenterX(c) - labelW / 2}
-                    y={yFor(i) - rowHeight / 2}
+                    y={yForCol(c, i) - rowHeight / 2}
                     width={labelW}
                     height={rowHeight}
                     fill={fill}
@@ -679,7 +762,7 @@ export function PermutationChain({ n }: PermutationChainProps) {
                   />
                   <text
                     x={colCenterX(c)}
-                    y={yFor(i) + labelFontSize / 3}
+                    y={yForCol(c, i) + labelFontSize / 3}
                     textAnchor="middle"
                     fontFamily="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
                     fontSize={labelFontSize}
@@ -695,13 +778,44 @@ export function PermutationChain({ n }: PermutationChainProps) {
         </svg>
       </SvgViewport>
 
-      {/* Per-stage cycle decomposition */}
+      {/* Per-stage cycle decomposition (with per-stage random / clear actions) */}
       <Stack spacing={1} sx={{ mt: 1.5 }}>
         {cyclesPerStage.map((cyc, k) => (
           <Box key={`cyc-${k}`}>
-            <Typography variant="caption" color="text.secondary">
-              α{k + 1} cycle 表示（{completePerStage[k] ? '完整' : `${mappings[k]!.size}/${total}`}）
-            </Typography>
+            <Stack
+              direction="row"
+              spacing={0.5}
+              sx={{ alignItems: 'center' }}
+            >
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ flexGrow: 1 }}
+              >
+                α{k + 1} cycle 表示（{completePerStage[k] ? '完整' : `${mappings[k]!.size}/${total}`}）
+              </Typography>
+              <Tooltip title={`隨機合法重設 α${k + 1}（不動其他段）`}>
+                <IconButton
+                  size="small"
+                  onClick={() => randomizeStage(k)}
+                  aria-label={`randomize legal alpha-${k + 1}`}
+                >
+                  <AutoFixHighIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={`清除 α${k + 1}`}>
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={() => clearStage(k)}
+                    disabled={mappings[k]!.size === 0}
+                    aria-label={`clear alpha-${k + 1}`}
+                  >
+                    <RestartAltIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Stack>
             <Typography
               variant="body2"
               sx={{
@@ -753,7 +867,59 @@ export function PermutationChain({ n }: PermutationChainProps) {
 
       {composite && (
         <Box sx={{ mt: 2 }}>
-          <Typography variant="overline" color="text.secondary">
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ alignItems: 'center', mb: 1 }}
+          >
+            <Typography
+              variant="overline"
+              color="text.secondary"
+              sx={{ flexGrow: 1 }}
+            >
+              Layered Realization
+            </Typography>
+            <Tooltip title="展開時，依序顯示 α₁..α_{L-1} 各自的分層實現，方便對照合成版的層數差異。">
+              <FormControlLabel
+                sx={{ m: 0 }}
+                control={
+                  <Switch
+                    size="small"
+                    checked={showPerStageLayered}
+                    onChange={(_, c) => setShowPerStageLayered(c)}
+                  />
+                }
+                label={
+                  <Typography variant="caption">顯示各段分解</Typography>
+                }
+              />
+            </Tooltip>
+          </Stack>
+
+          {showPerStageLayered && (
+            <Stack spacing={2} sx={{ mb: 2 }}>
+              {mappings.map((m, k) => (
+                <Box key={`per-stage-${k}`}>
+                  <Typography
+                    variant="overline"
+                    color="text.secondary"
+                    sx={{ display: 'block', mb: 0.5 }}
+                  >
+                    α<sub>{k + 1}</sub> 的 Layered Realization
+                  </Typography>
+                  {/* showLearningPanel={false} — 教學面板只在合成版顯示一次，
+                      避免每段重複同一份定理參考。 */}
+                  <LayeredView mapping={m} n={n} showLearningPanel={false} />
+                </Box>
+              ))}
+            </Stack>
+          )}
+
+          <Typography
+            variant="overline"
+            color="text.secondary"
+            sx={{ display: 'block', mb: 0.5 }}
+          >
             合成 α<sub>total</sub> 的 Layered Realization
           </Typography>
           <LayeredView mapping={composite} n={n} />

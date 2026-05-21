@@ -35,6 +35,13 @@ import { SvgViewport } from './SvgViewport';
 export type LayeredViewProps = {
   mapping: Mapping;
   n: number;
+  /**
+   * Whether to render the LearningPanel (theorem reference). Default true.
+   * Set to false when this LayeredView is one of many siblings (e.g.
+   * per-stage views inside PermutationChain) and the panel would just
+   * repeat the same content over and over.
+   */
+  showLearningPanel?: boolean;
 };
 
 const COLOR_ACTIVE = '#ed6c02';
@@ -49,7 +56,11 @@ function strandColor(startIdx: number, total: number): string {
   return `hsl(${hue}, 70%, 45%)`;
 }
 
-export function LayeredView({ mapping, n }: LayeredViewProps) {
+export function LayeredView({
+  mapping,
+  n,
+  showLearningPanel = true,
+}: LayeredViewProps) {
   const [strategy, setStrategy] = useState<Strategy>('above');
   const [reduced, setReduced] = useState(false);
   const [walkAware, setWalkAware] = useState(false);
@@ -662,7 +673,9 @@ export function LayeredView({ mapping, n }: LayeredViewProps) {
             step={step}
           />
 
-          <LearningPanel realization={realization} n={n} />
+          {showLearningPanel && (
+            <LearningPanel realization={realization} n={n} />
+          )}
         </>
       )}
     </Paper>

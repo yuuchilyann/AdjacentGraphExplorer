@@ -20,6 +20,7 @@ import ShuffleIcon from '@mui/icons-material/Shuffle';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
+import MultipleStopIcon from '@mui/icons-material/MultipleStop';
 
 import {
   cycleDecomposition,
@@ -390,6 +391,18 @@ export function PermutationChain({ n }: PermutationChainProps) {
   // d ≥ 2 stage they can still snap it manually or use the global random-any.
   const randomizeStage = (stage: number) => {
     setStageMapping(stage, randomLegalOne());
+    setSelected(null);
+    setDragPos(null);
+  };
+  const randomizeStageAny = (stage: number) => {
+    setStageMapping(stage, randomAnyOne());
+    setSelected(null);
+    setDragPos(null);
+  };
+  const identityStage = (stage: number) => {
+    const m = new Map<number, number>();
+    for (let i = 0; i < total; i++) m.set(i, i);
+    setStageMapping(stage, m);
     setSelected(null);
     setDragPos(null);
   };
@@ -794,13 +807,41 @@ export function PermutationChain({ n }: PermutationChainProps) {
               >
                 α{k + 1} cycle 表示（{completePerStage[k] ? '完整' : `${mappings[k]!.size}/${total}`}）
               </Typography>
-              <Tooltip title={`隨機合法重設 α${k + 1}（不動其他段）`}>
+              <Tooltip
+                title={`直通連接 α${k + 1}（α(x) = x，將同列直接連起來）`}
+              >
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={() => identityStage(k)}
+                    disabled={
+                      mappings[k]!.size === total &&
+                      Array.from(mappings[k]!.entries()).every(
+                        ([src, dst]) => src === dst,
+                      )
+                    }
+                    aria-label={`identity alpha-${k + 1}`}
+                  >
+                    <MultipleStopIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title={`隨機合法重設 α${k + 1}（d ≤ 1，不動其他段）`}>
                 <IconButton
                   size="small"
                   onClick={() => randomizeStage(k)}
                   aria-label={`randomize legal alpha-${k + 1}`}
                 >
                   <AutoFixHighIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={`隨機任意排列 α${k + 1}（不限 d，不動其他段）`}>
+                <IconButton
+                  size="small"
+                  onClick={() => randomizeStageAny(k)}
+                  aria-label={`randomize any alpha-${k + 1}`}
+                >
+                  <ShuffleIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
               <Tooltip title={`清除 α${k + 1}`}>

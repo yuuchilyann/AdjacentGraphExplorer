@@ -2,7 +2,9 @@ import { useMemo, useRef, useState } from 'react';
 import {
   Box,
   Button,
+  ButtonGroup,
   Chip,
+  Divider,
   Paper,
   Stack,
   Typography,
@@ -21,8 +23,8 @@ import {
   legalTargetsFor,
   snapTarget,
 } from '../lib/permutation';
-import { ExportActions } from './ExportActions';
 import { LayeredView } from './LayeredView';
+import { SvgViewport } from './SvgViewport';
 
 export type PermutationBuilderProps = {
   n: number;
@@ -230,12 +232,13 @@ export function PermutationBuilder({ n }: PermutationBuilderProps) {
 
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
+      {/* Row 1 — info: title + subtitle, progress chip on the right */}
       <Stack
-        direction={{ xs: 'column', md: 'row' }}
-        spacing={2}
-        sx={{ mb: 1.5, alignItems: { xs: 'flex-start', md: 'center' } }}
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={1.5}
+        sx={{ mb: 1, alignItems: { xs: 'flex-start', sm: 'center' } }}
       >
-        <Box sx={{ flexGrow: 1 }}>
+        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
           <Typography variant="overline" color="text.secondary">
             Permutation Builder — 連連看
           </Typography>
@@ -243,16 +246,38 @@ export function PermutationBuilder({ n }: PermutationBuilderProps) {
             左欄點/拖到右欄完成連線。非法或衝突的釋放會 silent-snap 到最近的合法可用目標。
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-          <Chip
-            size="small"
-            icon={complete ? <CheckCircleIcon /> : undefined}
-            color={complete ? 'success' : 'default'}
-            label={`進度 ${mapping.size}/${total}`}
+        <Chip
+          size="small"
+          icon={complete ? <CheckCircleIcon /> : undefined}
+          color={complete ? 'success' : 'default'}
+          label={`進度 ${mapping.size}/${total}`}
+          sx={{ flexShrink: 0 }}
+        />
+      </Stack>
+
+      {/* Row 2 — toolbar: random actions + reset */}
+      <Stack
+        direction="row"
+        spacing={1}
+        divider={
+          <Divider
+            orientation="vertical"
+            flexItem
+            sx={{ mx: 0.5, my: 0.5 }}
           />
+        }
+        sx={{
+          mb: 1.5,
+          flexWrap: 'wrap',
+          rowGap: 1,
+          p: 0.75,
+          bgcolor: 'action.hover',
+          borderRadius: 1,
+          alignItems: 'center',
+        }}
+      >
+        <ButtonGroup size="small" variant="outlined">
           <Button
-            size="small"
-            variant="outlined"
             startIcon={<AutoFixHighIcon />}
             onClick={randomizeLegal}
             title="隨機產生 G_α ⊆ Adjacent Bipartite Graph 的合法排列（所有邊 d ≤ 1）"
@@ -260,37 +285,27 @@ export function PermutationBuilder({ n }: PermutationBuilderProps) {
             隨機合法
           </Button>
           <Button
-            size="small"
-            variant="outlined"
             startIcon={<ShuffleIcon />}
             onClick={randomizeAny}
             title="隨機產生任意完整排列（通常含 d ≥ 2 邊，會觸發 Layered Realization）"
           >
             隨機任意
           </Button>
-          <Button
-            size="small"
-            startIcon={<RestartAltIcon />}
-            onClick={reset}
-            disabled={mapping.size === 0 && selected === null}
-          >
-            清除
-          </Button>
-          <ExportActions
-            svgRef={svgRef}
-            filename={`permutation-builder-n${n}`}
-          />
-        </Stack>
+        </ButtonGroup>
+        <Button
+          size="small"
+          startIcon={<RestartAltIcon />}
+          onClick={reset}
+          disabled={mapping.size === 0 && selected === null}
+        >
+          清除
+        </Button>
       </Stack>
 
-      <Box
-        sx={{
-          overflow: 'auto',
-          maxWidth: '100%',
-          bgcolor: 'background.default',
-          borderRadius: 1,
-          userSelect: 'none',
-        }}
+      <SvgViewport
+        svgRef={svgRef}
+        filename={`permutation-builder-n${n}`}
+        disableUserSelect
       >
         <svg
           ref={svgRef}
@@ -461,7 +476,7 @@ export function PermutationBuilder({ n }: PermutationBuilderProps) {
             );
           })}
         </svg>
-      </Box>
+      </SvgViewport>
 
       <Stack spacing={1} sx={{ mt: 1.5 }}>
         <Box>

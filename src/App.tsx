@@ -13,13 +13,15 @@ import {
 import HubIcon from '@mui/icons-material/Hub';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import ShuffleIcon from '@mui/icons-material/Shuffle';
+import LinkIcon from '@mui/icons-material/Link';
 
 import { ControlPanel } from './components/ControlPanel';
 import { LegalGraphView } from './components/LegalGraphView';
 import { PermutationBuilder } from './components/PermutationBuilder';
+import { PermutationChain } from './components/PermutationChain';
 import { buildLegalGraph } from './lib/hypercube';
 
-type ViewMode = 'legal' | 'builder';
+type ViewMode = 'legal' | 'builder' | 'chain';
 
 export default function App() {
   const [n, setN] = useState(2);
@@ -69,14 +71,16 @@ export default function App() {
                 <ShuffleIcon sx={{ mr: 1, fontSize: 18 }} />
                 Permutation Builder
               </ToggleButton>
+              <ToggleButton value="chain">
+                <LinkIcon sx={{ mr: 1, fontSize: 18 }} />
+                Permutation Chain
+              </ToggleButton>
             </ToggleButtonGroup>
           </Stack>
 
-          {mode === 'legal' ? (
-            <LegalGraphView graph={graph} />
-          ) : (
-            <PermutationBuilder n={n} />
-          )}
+          {mode === 'legal' && <LegalGraphView graph={graph} />}
+          {mode === 'builder' && <PermutationBuilder n={n} />}
+          {mode === 'chain' && <PermutationChain n={n} />}
         </Stack>
       </Container>
 

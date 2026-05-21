@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import {
   Box,
+  Divider,
   Paper,
   Stack,
   ToggleButton,
@@ -10,7 +11,7 @@ import {
 } from '@mui/material';
 
 import type { LayeredRealization } from '../lib/layered';
-import { ExportActions } from './ExportActions';
+import { SvgViewport } from './SvgViewport';
 
 export type QuantumCircuitViewProps = {
   realization: LayeredRealization;
@@ -78,12 +79,17 @@ export function QuantumCircuitView({
 
   // Layout — MSQ (least-significant qubit at the BOTTOM).
   const rowH = 44;
-  const padX = 80;
   const padY = 36;
   const slotW = 56;
   const slotsPerGate = mode === 'positive' ? 3 : 1;
-  const startX = padX + 90; // leave room for qubit labels on left
   const endPadX = 60; // tail wire after the last gate
+  // Left padding is sized to match the right side (endPadX / 2 = 30 px), plus
+  // a labelGutter just wide enough for the qubit label `|x_k⟩`. This keeps
+  // exported PNGs visually centered instead of leaving a large empty band on
+  // the left.
+  const padX = endPadX / 2; // 30 px — symmetric with the right trailing space
+  const labelGutter = 60; // room for `|x_k⟩` (textAnchor="end")
+  const startX = padX + labelGutter;
 
   const totalH = padY * 2 + n * rowH;
   const totalW = startX + gates.length * slotsPerGate * slotW + endPadX;
@@ -124,12 +130,13 @@ export function QuantumCircuitView({
 
   return (
     <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+      {/* Row 1 — info: title + subtitle (with inline color legend) */}
       <Stack
-        direction={{ xs: 'column', md: 'row' }}
-        spacing={2}
-        sx={{ mb: 1.5, alignItems: { xs: 'flex-start', md: 'center' } }}
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={1.5}
+        sx={{ mb: 1, alignItems: { xs: 'flex-start', sm: 'center' } }}
       >
-        <Box sx={{ flexGrow: 1 }}>
+        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
           <Typography variant="overline" color="text.secondary">
             Quantum Circuit — Layer → Multi-controlled X
           </Typography>
@@ -184,7 +191,33 @@ export function QuantumCircuitView({
             {n - 1}⟩；時間軸由左至右。
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+      </Stack>
+
+      {/* Row 2 — toolbar: control style toggle */}
+      <Stack
+        direction="row"
+        spacing={1}
+        divider={
+          <Divider
+            orientation="vertical"
+            flexItem
+            sx={{ mx: 0.5, my: 0.5 }}
+          />
+        }
+        sx={{
+          mb: 1.5,
+          flexWrap: 'wrap',
+          rowGap: 1,
+          p: 0.75,
+          bgcolor: 'action.hover',
+          borderRadius: 1,
+          alignItems: 'center',
+        }}
+      >
+        <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+          <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
+            控制端
+          </Typography>
           <Tooltip
             title={
               mode === 'mixed'
@@ -203,20 +236,12 @@ export function QuantumCircuitView({
               <ToggleButton value="positive">Positive-only</ToggleButton>
             </ToggleButtonGroup>
           </Tooltip>
-          <ExportActions
-            svgRef={svgRef}
-            filename={`quantum-circuit-n${n}-${realization.strategy}-${mode}`}
-          />
         </Stack>
       </Stack>
 
-      <Box
-        sx={{
-          overflow: 'auto',
-          maxWidth: '100%',
-          bgcolor: 'background.default',
-          borderRadius: 1,
-        }}
+      <SvgViewport
+        svgRef={svgRef}
+        filename={`quantum-circuit-n${n}-${realization.strategy}-${mode}`}
       >
         <svg
           ref={svgRef}
@@ -427,7 +452,7 @@ export function QuantumCircuitView({
               );
             })}
         </svg>
-      </Box>
+      </SvgViewport>
 
       <Typography
         variant="caption"

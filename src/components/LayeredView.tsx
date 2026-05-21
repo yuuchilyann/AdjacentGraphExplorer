@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
+  Divider,
   IconButton,
   Paper,
   Stack,
@@ -27,9 +28,9 @@ import {
   reduceRealization,
   type Strategy,
 } from '../lib/layered';
-import { ExportActions } from './ExportActions';
 import { QuantumCircuitView } from './QuantumCircuitView';
 import { LearningPanel } from './LearningPanel';
+import { SvgViewport } from './SvgViewport';
 
 export type LayeredViewProps = {
   mapping: Mapping;
@@ -154,12 +155,13 @@ export function LayeredView({ mapping, n }: LayeredViewProps) {
 
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
+      {/* Row 1 — info: title + subtitle, verified chip on the right */}
       <Stack
-        direction={{ xs: 'column', md: 'row' }}
-        spacing={2}
-        sx={{ mb: 1.5, alignItems: { xs: 'flex-start', md: 'center' } }}
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={1.5}
+        sx={{ mb: 1, alignItems: { xs: 'flex-start', sm: 'center' } }}
       >
-        <Box sx={{ flexGrow: 1 }}>
+        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
           <Typography variant="overline" color="text.secondary">
             Layered Realization — Wiring Diagram
           </Typography>
@@ -177,72 +179,96 @@ export function LayeredView({ mapping, n }: LayeredViewProps) {
             。
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-          <Tooltip
-            title={
-              realization.verification.ok
-                ? '已驗證：每條 strand 終點 = target，且每個 layer 都是 d ≤ 1。'
-                : `驗證失敗：${realization.verification.mismatches.length} 條 strand 終點不符、${realization.verification.illegalLayers.length} 個 layer 非法。`
+        <Tooltip
+          title={
+            realization.verification.ok
+              ? '已驗證：每條 strand 終點 = target，且每個 layer 都是 d ≤ 1。'
+              : `驗證失敗：${realization.verification.mismatches.length} 條 strand 終點不符、${realization.verification.illegalLayers.length} 個 layer 非法。`
+          }
+        >
+          <Chip
+            size="small"
+            icon={
+              realization.verification.ok ? (
+                <VerifiedIcon />
+              ) : (
+                <WarningAmberIcon />
+              )
             }
-          >
-            <Chip
-              size="small"
-              icon={
-                realization.verification.ok ? (
-                  <VerifiedIcon />
-                ) : (
-                  <WarningAmberIcon />
-                )
-              }
-              label={realization.verification.ok ? 'verified' : 'mismatch'}
-              color={realization.verification.ok ? 'success' : 'error'}
-              variant="outlined"
-            />
-          </Tooltip>
-          <Tooltip
-            title={
-              canonical.usedGrayPath
-                ? 'Gray-path 走法：Top-down 走 AND-bridge（低權重）；Bottom-up 走 OR-bridge（高權重）。只對 d ≥ 2 的 transposition 有差。'
-                : walkAware && canonical.walkDecomposedCycles === canonical.totalCycles && canonical.totalCycles > 0
-                  ? '本次所有 cycle 都被 Walk-aware 直接吃下，沒有 Gray-path 共軛展開，Top-down/Bottom-up 對結果無影響（已 disabled）。'
-                  : '本次排列無 d ≥ 2 的 transposition，沒有 Gray-path 共軛展開，Top-down/Bottom-up 對結果無影響（已 disabled）。'
-            }
-          >
-            <span>
-              <ToggleButtonGroup
-                value={strategy}
-                exclusive
-                size="small"
-                onChange={(_, v: Strategy | null) => v && setStrategy(v)}
-                color="primary"
-                disabled={!canonical.usedGrayPath}
-              >
-                <ToggleButton value="above">Top-down</ToggleButton>
-                <ToggleButton value="below">Bottom-up</ToggleButton>
-              </ToggleButtonGroup>
-            </span>
-          </Tooltip>
-          <Tooltip
-            title={
-              reduced
-                ? '已開啟：相鄰（或可交換通過的）同 swap 對會自動相消，顯示最短化序列。'
-                : '關閉：顯示算法原始輸出（含可能的 involution 虛工，方便看出分解來源）。'
-            }
-          >
+            label={realization.verification.ok ? 'verified' : 'mismatch'}
+            color={realization.verification.ok ? 'success' : 'error'}
+            variant="outlined"
+            sx={{ flexShrink: 0 }}
+          />
+        </Tooltip>
+      </Stack>
+
+      {/* Row 2 — settings toolbar: Strategy | Reduced | Walk-aware + status chips */}
+      <Stack
+        direction="row"
+        spacing={1}
+        divider={
+          <Divider
+            orientation="vertical"
+            flexItem
+            sx={{ mx: 0.5, my: 0.5 }}
+          />
+        }
+        sx={{
+          mb: 1.5,
+          flexWrap: 'wrap',
+          rowGap: 1,
+          p: 0.75,
+          bgcolor: 'action.hover',
+          borderRadius: 1,
+          alignItems: 'center',
+        }}
+      >
+        <Tooltip
+          title={
+            canonical.usedGrayPath
+              ? 'Gray-path 走法：Top-down 走 AND-bridge（低權重）；Bottom-up 走 OR-bridge（高權重）。只對 d ≥ 2 的 transposition 有差。'
+              : walkAware && canonical.walkDecomposedCycles === canonical.totalCycles && canonical.totalCycles > 0
+                ? '本次所有 cycle 都被 Walk-aware 直接吃下，沒有 Gray-path 共軛展開，Top-down/Bottom-up 對結果無影響（已 disabled）。'
+                : '本次排列無 d ≥ 2 的 transposition，沒有 Gray-path 共軛展開，Top-down/Bottom-up 對結果無影響（已 disabled）。'
+          }
+        >
+          <span>
             <ToggleButtonGroup
-              value={reduced ? 'reduced' : 'original'}
+              value={strategy}
               exclusive
               size="small"
-              onChange={(_, v: string | null) => {
-                if (v === 'original') setReduced(false);
-                else if (v === 'reduced') setReduced(true);
-              }}
-              color="secondary"
+              onChange={(_, v: Strategy | null) => v && setStrategy(v)}
+              color="primary"
+              disabled={!canonical.usedGrayPath}
             >
-              <ToggleButton value="original">Original</ToggleButton>
-              <ToggleButton value="reduced">Reduced</ToggleButton>
+              <ToggleButton value="above">Top-down</ToggleButton>
+              <ToggleButton value="below">Bottom-up</ToggleButton>
             </ToggleButtonGroup>
-          </Tooltip>
+          </span>
+        </Tooltip>
+        <Tooltip
+          title={
+            reduced
+              ? '已開啟：相鄰（或可交換通過的）同 swap 對會自動相消，顯示最短化序列。'
+              : '關閉：顯示算法原始輸出（含可能的 involution 虛工，方便看出分解來源）。'
+          }
+        >
+          <ToggleButtonGroup
+            value={reduced ? 'reduced' : 'original'}
+            exclusive
+            size="small"
+            onChange={(_, v: string | null) => {
+              if (v === 'original') setReduced(false);
+              else if (v === 'reduced') setReduced(true);
+            }}
+            color="secondary"
+          >
+            <ToggleButton value="original">Original</ToggleButton>
+            <ToggleButton value="reduced">Reduced</ToggleButton>
+          </ToggleButtonGroup>
+        </Tooltip>
+        <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
           <Tooltip
             title={
               walkAware
@@ -256,7 +282,6 @@ export function LayeredView({ mapping, n }: LayeredViewProps) {
               selected={walkAware}
               onChange={() => setWalkAware((v) => !v)}
               color="success"
-              sx={{ ml: 0 }}
             >
               Walk-aware
             </ToggleButton>
@@ -282,10 +307,6 @@ export function LayeredView({ mapping, n }: LayeredViewProps) {
               />
             </Tooltip>
           )}
-          <ExportActions
-            svgRef={svgRef}
-            filename={`layered-realization-n${n}-${strategy}${walkAware ? '-walk' : ''}${reduced ? '-reduced' : ''}`}
-          />
         </Stack>
       </Stack>
 
@@ -306,10 +327,19 @@ export function LayeredView({ mapping, n }: LayeredViewProps) {
         </Alert>
       ) : (
         <>
+          {/* Playback toolbar — same tinted style as the settings toolbar above */}
           <Stack
             direction="row"
-            spacing={1}
-            sx={{ alignItems: 'center', mb: 1, flexWrap: 'wrap' }}
+            spacing={0.5}
+            sx={{
+              alignItems: 'center',
+              mb: 1,
+              flexWrap: 'wrap',
+              rowGap: 1,
+              p: 0.75,
+              bgcolor: 'action.hover',
+              borderRadius: 1,
+            }}
           >
             <Tooltip title="回到開始">
               <span>
@@ -389,13 +419,9 @@ export function LayeredView({ mapping, n }: LayeredViewProps) {
             </Typography>
           </Stack>
 
-          <Box
-            sx={{
-              overflow: 'auto',
-              maxWidth: '100%',
-              bgcolor: 'background.default',
-              borderRadius: 1,
-            }}
+          <SvgViewport
+            svgRef={svgRef}
+            filename={`layered-realization-n${n}-${strategy}${walkAware ? '-walk' : ''}${reduced ? '-reduced' : ''}`}
           >
             <svg
               ref={svgRef}
@@ -561,7 +587,7 @@ export function LayeredView({ mapping, n }: LayeredViewProps) {
                 );
               })}
             </svg>
-          </Box>
+          </SvgViewport>
 
           <Stack
             direction="row"

@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import {
   Box,
   Chip,
+  Divider,
   FormControlLabel,
   Paper,
   Stack,
@@ -9,7 +10,7 @@ import {
   Typography,
 } from '@mui/material';
 import type { LegalEdge, LegalGraph } from '../types';
-import { ExportActions } from './ExportActions';
+import { SvgViewport } from './SvgViewport';
 
 export type LegalGraphViewProps = {
   graph: LegalGraph;
@@ -67,15 +68,13 @@ export function LegalGraphView({ graph }: LegalGraphViewProps) {
 
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
+      {/* Row 1 — info: title + subtitle */}
       <Stack
-        direction={{ xs: 'column', md: 'row' }}
-        spacing={2}
-        sx={{
-          mb: 1.5,
-          alignItems: { xs: 'flex-start', md: 'center' },
-        }}
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={1.5}
+        sx={{ mb: 1, alignItems: { xs: 'flex-start', sm: 'center' } }}
       >
-        <Box sx={{ flexGrow: 1 }}>
+        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
           <Typography variant="overline" color="text.secondary">
             合法圖 (Legal Graph) — Bipartite view
           </Typography>
@@ -83,7 +82,30 @@ export function LegalGraphView({ graph }: LegalGraphViewProps) {
             左欄為來源 |x⟩，右欄為目標 |y⟩，連線代表 Hamming(x, y) ≤ 1（含 self-loop）。
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+      </Stack>
+
+      {/* Row 2 — toolbar: legend chips | display switch */}
+      <Stack
+        direction="row"
+        spacing={1}
+        divider={
+          <Divider
+            orientation="vertical"
+            flexItem
+            sx={{ mx: 0.5, my: 0.5 }}
+          />
+        }
+        sx={{
+          mb: 1.5,
+          flexWrap: 'wrap',
+          rowGap: 1,
+          p: 0.75,
+          bgcolor: 'action.hover',
+          borderRadius: 1,
+          alignItems: 'center',
+        }}
+      >
+        <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
           <Chip
             size="small"
             sx={{ bgcolor: COLOR_SELF, color: 'white' }}
@@ -94,24 +116,24 @@ export function LegalGraphView({ graph }: LegalGraphViewProps) {
             sx={{ bgcolor: COLOR_FLIP, color: 'white' }}
             label={`bit-flip × ${edges.filter((e) => e.hammingDistance === 1).length}`}
           />
-          <FormControlLabel
-            control={
-              <Switch
-                size="small"
-                checked={showSelfLoops}
-                onChange={(_, c) => setShowSelfLoops(c)}
-              />
-            }
-            label="顯示 self-loop"
-          />
-          <ExportActions
-            svgRef={svgRef}
-            filename={`adjacent-bipartite-graph-n${n}`}
-          />
         </Stack>
+        <FormControlLabel
+          sx={{ m: 0 }}
+          control={
+            <Switch
+              size="small"
+              checked={showSelfLoops}
+              onChange={(_, c) => setShowSelfLoops(c)}
+            />
+          }
+          label="顯示 self-loop"
+        />
       </Stack>
 
-      <Box sx={{ overflow: 'auto', maxWidth: '100%', bgcolor: 'background.default', borderRadius: 1 }}>
+      <SvgViewport
+        svgRef={svgRef}
+        filename={`adjacent-bipartite-graph-n${n}`}
+      >
         <svg
           ref={svgRef}
           width={totalW}
@@ -245,7 +267,7 @@ export function LegalGraphView({ graph }: LegalGraphViewProps) {
             );
           })}
         </svg>
-      </Box>
+      </SvgViewport>
 
       <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
         提示：滑鼠移到左欄 |x⟩ 醒目其 outgoing 合法邊 (x → y)；移到右欄 |y⟩ 醒目其 incoming 合法邊 (x → y)。

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Button,
@@ -28,6 +28,17 @@ import { SvgViewport } from './SvgViewport';
 
 export type PermutationBuilderProps = {
   n: number;
+  /**
+   * Fires after every mapping mutation. Used by hosts (e.g. Guided Build) that
+   * embed this builder purely to elicit a target permutation.
+   */
+  onMappingChange?: (mapping: Map<number, number>) => void;
+  /**
+   * When true, suppresses the inner LayeredView and the trailing cycle/legend
+   * footer — the host owns downstream rendering. The bipartite picker, random
+   * actions, and progress chip remain visible.
+   */
+  embedded?: boolean;
 };
 
 const COLOR_COMMITTED = '#2e7d32';
@@ -38,8 +49,16 @@ const COLOR_FAR_AVAIL = '#ed6c02';
 const COLOR_TAKEN = '#c62828';
 const COLOR_HOVER_BG = 'rgba(237, 108, 2, 0.12)';
 
-export function PermutationBuilder({ n }: PermutationBuilderProps) {
+export function PermutationBuilder({
+  n,
+  onMappingChange,
+  embedded = false,
+}: PermutationBuilderProps) {
   const [mapping, setMapping] = useState<Map<number, number>>(new Map());
+
+  useEffect(() => {
+    onMappingChange?.(mapping);
+  }, [mapping, onMappingChange]);
   const [selected, setSelected] = useState<number | null>(null);
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -516,7 +535,7 @@ export function PermutationBuilder({ n }: PermutationBuilderProps) {
         })()}
       </Stack>
 
-      {mapping.size > 0 && (
+      {!embedded && mapping.size > 0 && (
         <Box sx={{ mt: 2 }}>
           <LayeredView mapping={mapping} n={n} />
         </Box>

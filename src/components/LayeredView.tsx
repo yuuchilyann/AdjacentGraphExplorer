@@ -64,6 +64,7 @@ export function LayeredView({
   const [strategy, setStrategy] = useState<Strategy>('above');
   const [reduced, setReduced] = useState(false);
   const [walkAware, setWalkAware] = useState(false);
+  const [reversedRows, setReversedRows] = useState(false);
   const canonical = useMemo(
     () => realizeLayered(mapping, n, strategy, walkAware),
     [mapping, n, strategy, walkAware],
@@ -139,7 +140,8 @@ export function LayeredView({
   const colLeftX = (c: number) => padX + c * (labelW + colGap);
   const colRightX = (c: number) => colLeftX(c) + labelW;
   const colCenterX = (c: number) => colLeftX(c) + labelW / 2;
-  const yFor = (i: number) => padY + rowHeight / 2 + i * rowHeight;
+  const yFor = (i: number) =>
+    padY + rowHeight / 2 + (reversedRows ? total - 1 - i : i) * rowHeight;
   const totalW = padX * 2 + totalCols * labelW + (totalCols - 1) * colGap;
   const totalH = padY * 2 + total * rowHeight;
 
@@ -319,6 +321,16 @@ export function LayeredView({
             </Tooltip>
           )}
         </Stack>
+        <Tooltip title={reversedRows ? '目前：|11⟩→|00⟩（由上而下遞減）。點擊切回遞增。' : '目前：|00⟩→|11⟩（由上而下遞增）。點擊切換為遞減排列。'}>
+          <ToggleButton
+            value="reverse"
+            size="small"
+            selected={reversedRows}
+            onChange={() => setReversedRows((v) => !v)}
+          >
+            {reversedRows ? '↕ |11⟩→|00⟩' : '↕ |00⟩→|11⟩'}
+          </ToggleButton>
+        </Tooltip>
       </Stack>
 
       {realization.unsupported.length > 0 && (

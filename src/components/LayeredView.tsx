@@ -29,6 +29,7 @@ import {
   type Strategy,
 } from '../lib/layered';
 import { QuantumCircuitView } from './QuantumCircuitView';
+import { ElementaryRowMatrixPanel } from './ElementaryRowMatrixPanel';
 import { LearningPanel } from './LearningPanel';
 import { SvgViewport } from './SvgViewport';
 
@@ -668,6 +669,12 @@ export function LayeredView({
           </Typography>
 
           <QuantumCircuitView
+            realization={realization}
+            n={n}
+            step={step}
+          />
+
+          <ElementaryRowMatrixPanel
             realization={realization}
             n={n}
             step={step}

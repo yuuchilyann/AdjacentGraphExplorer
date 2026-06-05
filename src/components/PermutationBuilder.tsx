@@ -7,12 +7,14 @@ import {
   Divider,
   Paper,
   Stack,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ShuffleIcon from '@mui/icons-material/Shuffle';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import LoopIcon from '@mui/icons-material/Loop';
 
 import {
   cycleDecomposition,
@@ -188,6 +190,35 @@ export function PermutationBuilder({
     setDragPos(null);
   };
 
+  // Sources still missing an edge whose own target |x⟩ is also free — these are
+  // exactly the ones we can complete as fixed points (|x⟩→|x⟩, always d = 0).
+  // A leftover whose self-target is already taken can't self-loop and is left
+  // for the user to resolve manually.
+  const selfLoopCandidates = useMemo(() => {
+    const arr: number[] = [];
+    for (let x = 0; x < total; x++) {
+      if (!mapping.has(x) && !usedTargets.has(x)) arr.push(x);
+    }
+    return arr;
+  }, [mapping, usedTargets, total]);
+
+  // 把所有可補的剩餘來源一次連成 self-loop。
+  const fillSelfLoops = () => {
+    if (selfLoopCandidates.length === 0) return;
+    const next = new Map(mapping);
+    for (const x of selfLoopCandidates) next.set(x, x);
+    setMapping(next);
+    setSelected(null);
+    setDragPos(null);
+  };
+
+  const selfLoopTooltip =
+    selfLoopCandidates.length > 0
+      ? `把剩餘 ${selfLoopCandidates.length} 個未連的來源補成 self-loop（|x⟩→|x⟩，固定點）`
+      : complete
+        ? '排列已完整，無需補 self-loop'
+        : '剩餘未連來源的自身目標已被佔用，無法自動補 self-loop（請手動處理或清除衝突）';
+
   // 隨機完整 bijection（Fisher-Yates）— 通常會含 d ≥ 2 邊，會自動觸發 Layered Realization。
   const randomizeAny = () => {
     const arr = Array.from({ length: total }, (_, i) => i);
@@ -311,6 +342,20 @@ export function PermutationBuilder({
             隨機任意
           </Button>
         </ButtonGroup>
+        <Tooltip title={selfLoopTooltip}>
+          {/* span keeps the tooltip working while the button is disabled */}
+          <span>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<LoopIcon />}
+              onClick={fillSelfLoops}
+              disabled={selfLoopCandidates.length === 0}
+            >
+              補滿 self-loop
+            </Button>
+          </span>
+        </Tooltip>
         <Button
           size="small"
           startIcon={<RestartAltIcon />}

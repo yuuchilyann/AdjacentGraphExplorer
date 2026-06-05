@@ -21,6 +21,7 @@ import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import MultipleStopIcon from '@mui/icons-material/MultipleStop';
+import LoopIcon from '@mui/icons-material/Loop';
 
 import {
   cycleDecomposition,
@@ -412,6 +413,47 @@ export function PermutationChain({ n }: PermutationChainProps) {
     setDragPos(null);
   };
 
+  // Per stage, the sources still missing an edge whose own target |x⟩ is also
+  // free — exactly those completable as fixed points (|x⟩→|x⟩, always d = 0).
+  // Mirrors PermutationBuilder, applied to every stage at once.
+  const selfLoopCandidatesPerStage = useMemo(() => {
+    return mappings.map((m, s) => {
+      const used = usedTargetsPerStage[s]!;
+      const arr: number[] = [];
+      for (let x = 0; x < total; x++) {
+        if (!m.has(x) && !used.has(x)) arr.push(x);
+      }
+      return arr;
+    });
+  }, [mappings, usedTargetsPerStage, total]);
+  const totalSelfLoopCandidates = useMemo(
+    () => selfLoopCandidatesPerStage.reduce((sum, a) => sum + a.length, 0),
+    [selfLoopCandidatesPerStage],
+  );
+
+  // 把每一段可補的剩餘來源一次連成 self-loop（不動已連的邊）。
+  const fillSelfLoopsAll = () => {
+    if (totalSelfLoopCandidates === 0) return;
+    setMappings((prev) =>
+      prev.map((m, s) => {
+        const cands = selfLoopCandidatesPerStage[s]!;
+        if (cands.length === 0) return m;
+        const next = new Map(m);
+        for (const x of cands) next.set(x, x);
+        return next;
+      }),
+    );
+    setSelected(null);
+    setDragPos(null);
+  };
+
+  const selfLoopTooltip =
+    totalSelfLoopCandidates > 0
+      ? `把所有段剩餘共 ${totalSelfLoopCandidates} 個未連的來源補成 self-loop（|x⟩→|x⟩，固定點），不動已連的邊`
+      : composite !== null
+        ? '所有段皆完整，無需補 self-loop'
+        : '剩餘未連來源的自身目標已被佔用，無法自動補 self-loop（請手動處理或清除衝突）';
+
   // Pre-compute committed edges per stage.
   const committedPerStage = useMemo(() => {
     return mappings.map((m) => {
@@ -558,6 +600,20 @@ export function PermutationChain({ n }: PermutationChainProps) {
           >
             清除
           </Button>
+          <Tooltip title={selfLoopTooltip}>
+            {/* span keeps the tooltip working while the button is disabled */}
+            <span>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<LoopIcon />}
+                onClick={fillSelfLoopsAll}
+                disabled={totalSelfLoopCandidates === 0}
+              >
+                補滿 self-loop
+              </Button>
+            </span>
+          </Tooltip>
         </Stack>
 
         <Tooltip

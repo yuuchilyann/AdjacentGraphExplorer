@@ -22,6 +22,8 @@
 - 每段 cycle decomposition + 合成 α_total cycle 顯示
 - 全部段完成後嵌入 `LayeredView` 顯示**合成 α_total** 的層級實現
 - 全部隨機合法 / 全部隨機任意 / 全部清除 + SVG export
+- 「補滿 self-loop」按鈕（全段）：一鍵把每段剩餘未連、且自身目標仍空的
+  來源補成 |x⟩→|x⟩，保留各段已連的邊（詳見 §三.6）
 - `n` 改變時自動清空全部段
 - 工具列採兩列：資訊列 + 動作列（分組 + 直線分隔 + 淡灰底）；複製/下載
   浮在圖區右上角，與 5 個視圖統一
@@ -75,6 +77,28 @@ Walk-aware），可獨立調整每段視覺策略。
 
 **未來可考慮**：合成完成前的 partial path-aware（每欄只重排已定義的部分），
 但這會犧牲 row 唯一性，目前判斷不划算。
+
+### 6. ✅「補滿 self-loop」按鈕（已實作 2026-06-05）
+
+**動機**：使用者連完想要的邊（通常是若干 legal 2-cycle）後，剩下的固定點
+要逐一手動補 self-loop 太繁瑣。
+
+**實作位置**：
+- `PermutationBuilder.tsx` — 單一 mapping 版：`selfLoopCandidates` memo +
+  `fillSelfLoops`，工具列「補滿 self-loop」按鈕（`↻` LoopIcon）。
+- `PermutationChain.tsx` — 全段版：`selfLoopCandidatesPerStage` /
+  `totalSelfLoopCandidates` memo + `fillSelfLoopsAll`，主工具列同款按鈕。
+
+**核心語意（非顯然，務必記住）**：
+- 候選 = `!mapping.has(x) && !usedTargets.has(x)`，即「來源 x 未連，且目標
+  |x⟩ 仍空」。只補這些 → self-loop 恆為 d = 0 合法邊，直接 set，不經 snap。
+- **部分補滿**：若某剩餘來源的自身目標已被別人佔走（例：只連 |000⟩→|010⟩，
+  |010⟩ 的目標被佔），它無法 self-loop，會留著讓使用者手動處理，而不是亂
+  配一個目標。這是刻意的——使用者要的是「補固定點」，不是「硬湊完整排列」。
+- 與每段「直通連接」(`identityStage` / `MultipleStopIcon`) 區分：後者整段
+  覆寫成完整 identity；本功能只補剩餘、不動已連邊。
+- disable + Tooltip（per [[feedback-disable-inactive-controls]]）：無候選時
+  變灰，Tooltip 分「已完整」與「剩餘來源自身目標被佔用無法自動補」兩種。
 
 ### 4. 「隨機合法 / 隨機任意」改為 SplitButton
 

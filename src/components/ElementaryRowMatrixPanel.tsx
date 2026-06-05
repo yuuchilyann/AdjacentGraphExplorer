@@ -28,6 +28,43 @@ type Detail = 'full' | 'simplified';
 
 const HIGHLIGHT = '#ed6c02';
 
+/**
+ * Per-bit colours for the swapped pair, mirroring the red marks in the source
+ * document and the circuit view's control/target split: the n−1 bits shared by
+ * |i⟩ and |j⟩ are the controls; the single differing bit is the X target.
+ */
+const COLOR_CONTROL = HIGHLIGHT; // 控制位元（i、j 相同）— 橘
+const COLOR_TARGET = '#1565c0'; // 目標位元（唯一相異、被 X 翻轉）— 藍
+
+/** Bit index (from LSB) that differs between i and j, or −1 if not exactly one. */
+const targetBit = (i: number, j: number): number => {
+  const d = i ^ j;
+  if (d === 0 || (d & (d - 1)) !== 0) return -1; // 0 or ≥2 differing bits
+  let pos = 0;
+  while (((d >> pos) & 1) === 0) pos++;
+  return pos;
+};
+
+/**
+ * |ket⟩ with each bit coloured by its circuit role: the differing bit at
+ * `tPos` (from LSB) is the target, every other bit is a control. Falls back to
+ * a flat highlight of the whole ket when `tPos < 0`.
+ */
+const ketBitColored = (l: number, n: number, tPos: number): string => {
+  if (n === 0) return '|\\,\\rangle';
+  if (tPos < 0) return `\\textcolor{${COLOR_CONTROL}}{${ket(l, n)}}`;
+  const bits = l.toString(2).padStart(n, '0'); // MSB-first
+  const cells = bits
+    .split('')
+    .map((b, idx) => {
+      const bitPos = n - 1 - idx; // string index → bit index from LSB
+      const col = bitPos === tPos ? COLOR_TARGET : COLOR_CONTROL;
+      return `\\textcolor{${col}}{${b}}`;
+    })
+    .join('');
+  return `|${cells}\\rangle`;
+};
+
 /** Max basis-state count we still render as a full 2^n × 2^n matrix. */
 const MAX_DIM = 16; // n ≤ 4
 
@@ -61,18 +98,21 @@ function twoLineNotationTex(
   full: boolean,
 ): string {
   const N = 1 << n;
-  const wrap = (s: string, hot: boolean) =>
-    hot ? `\\textcolor{${HIGHLIGHT}}{${s}}` : s;
+  const tPos = targetBit(i, j);
+  // Hot (swapped) columns get per-bit control/target colouring; the rest are
+  // rendered plain.
+  const cell = (l: number, hot: boolean) =>
+    hot ? ketBitColored(l, n, tPos) : ket(l, n);
   const imageOf = (l: number) => (l === i ? j : l === j ? i : l);
 
-  const top: string[] = [];
-  const bottom: string[] = [];
+  // Both rows always run in standard |0…0⟩-ascending order; only the bottom
+  // row's entries at columns i and j are swapped (Cauchy two-line notation).
+  const cols: { top: string; bottom: string }[] = [];
 
   if (full) {
     for (let l = 0; l < N; l++) {
       const hot = l === i || l === j;
-      top.push(wrap(ket(l, n), hot));
-      bottom.push(wrap(ket(imageOf(l), n), hot));
+      cols.push({ top: cell(l, hot), bottom: cell(imageOf(l), hot) });
     }
   } else {
     // Landmarks to anchor the schematic, deduped and ordered.
@@ -82,18 +122,18 @@ function twoLineNotationTex(
     for (let idx = 0; idx < landmarks.length; idx++) {
       const l = landmarks[idx]!;
       const hot = l === i || l === j;
-      top.push(wrap(ket(l, n), hot));
-      bottom.push(wrap(ket(imageOf(l), n), hot));
+      cols.push({ top: cell(l, hot), bottom: cell(imageOf(l), hot) });
 
       // Insert an ellipsis column if the next landmark is not adjacent.
       const next = landmarks[idx + 1];
       if (next !== undefined && next > l + 1) {
-        top.push('\\cdots');
-        bottom.push('\\cdots');
+        cols.push({ top: '\\cdots', bottom: '\\cdots' });
       }
     }
   }
 
+  const top = cols.map((c) => c.top);
+  const bottom = cols.map((c) => c.bottom);
   return `\\begin{pmatrix} ${top.join(' & ')} \\\\ ${bottom.join(' & ')} \\end{pmatrix}`;
 }
 
@@ -108,6 +148,7 @@ function twoLineNotationTex(
  */
 function elementaryRowMatrixTex(i: number, j: number, n: number): string {
   const N = 1 << n;
+  const tPos = targetBit(i, j);
   const labels: string[] = [];
   const rows: string[] = [];
 
@@ -123,8 +164,8 @@ function elementaryRowMatrixTex(i: number, j: number, n: number): string {
     }
     rows.push(cells.join(' & '));
 
-    const lab = ket(r, n);
-    labels.push(swapped ? `\\textcolor{${HIGHLIGHT}}{${lab}}` : lab);
+    // Swapped-row labels reuse the per-bit control/target colouring.
+    labels.push(swapped ? ketBitColored(r, n, tPos) : ket(r, n));
   }
 
   const labelCol = `\\begin{matrix} ${labels.join(' \\\\ ')} \\end{matrix}`;
@@ -208,6 +249,20 @@ export function ElementaryRowMatrixPanel({
           tex={`R_{(i,\\,j)} = I \\text{ with rows } i \\leftrightarrow j \\text{ exchanged}`}
         />
       </Box>
+
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5, mt: 0.5 }}
+      >
+        被互換的兩個基底態，位元配色對應量子電路：
+        <Box component="span" sx={{ color: COLOR_CONTROL, fontWeight: 700 }}>
+          ■ 控制位元（|i⟩、|j⟩ 相同）
+        </Box>
+        <Box component="span" sx={{ color: COLOR_TARGET, fontWeight: 700 }}>
+          ■ 目標位元（唯一相異 → 被 X 翻轉）
+        </Box>
+      </Typography>
 
       {isFull && !canFullTwoLine && (
         <Alert severity="info" sx={{ mt: 1 }}>

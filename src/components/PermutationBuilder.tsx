@@ -51,6 +51,12 @@ export type PermutationBuilderProps = {
 /** Max basis-state count for which we render the full two-line notation (n ≤ 5). */
 const TWO_LINE_MAX_DIM = 32;
 
+/** Max basis-state count for which we render the full N×N matrix (n ≤ 4). */
+const MATRIX_MAX_DIM = 16;
+
+/** Highlight colour for non-fixed-point entries, matching ElementaryRowMatrixPanel. */
+const MATRIX_HIGHLIGHT = '#ed6c02';
+
 /** LaTeX ket string, e.g. |01⟩ */
 const ketTex = (i: number, n: number): string =>
   n === 0 ? '|\\,\\rangle' : `|${i.toString(2).padStart(n, '0')}\\rangle`;
@@ -97,6 +103,46 @@ function fullPermTwoLineTex(
 
 const COLOR_COMMITTED = '#2e7d32';
 const COLOR_COMMITTED_FAR = '#ed6c02';
+
+/**
+ * Full permutation matrix P_α in the same style as ElementaryRowMatrixPanel:
+ * left ket-label column + pmatrix + "= P_α".
+ *
+ * Row r has 1 at column α(r); non-fixed-point entries (α(r) ≠ r) are
+ * highlighted orange.  Unmapped rows show \cdot for every cell.
+ */
+function fullPermMatrixTex(mapping: Map<number, number>, n: number): string {
+  const N = 1 << n;
+  const labels: string[] = [];
+  const rows: string[] = [];
+
+  for (let r = 0; r < N; r++) {
+    const target = mapping.get(r);
+    const isNonFixed = target !== undefined && target !== r;
+
+    const cells: string[] = [];
+    for (let c = 0; c < N; c++) {
+      if (target === undefined) {
+        cells.push('\\cdot');
+      } else {
+        const isOne = c === target;
+        cells.push(
+          isOne && isNonFixed
+            ? `\\textcolor{${MATRIX_HIGHLIGHT}}{1}`
+            : isOne
+              ? '1'
+              : '0',
+        );
+      }
+    }
+    rows.push(cells.join(' & '));
+    labels.push(ketTex(r, n));
+  }
+
+  const labelCol = `\\begin{matrix} ${labels.join(' \\\\ ')} \\end{matrix}`;
+  const matrix = `\\begin{pmatrix} ${rows.join(' \\\\ ')} \\end{pmatrix}`;
+  return `\\begin{array}{cc} ${labelCol} & ${matrix} \\end{array} \\;=\\; P_{\\alpha}`;
+}
 const COLOR_PREVIEW = '#ed6c02';
 const COLOR_AVAILABLE = '#1976d2';
 const COLOR_FAR_AVAIL = '#ed6c02';
@@ -644,6 +690,22 @@ export function PermutationBuilder({
             ) : (
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                 n = {n} ⇒ 2ⁿ = {total}，欄數過多，略去完整展開。
+              </Typography>
+            )}
+          </Box>
+        )}
+        {mapping.size > 0 && (
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              排列矩陣 <MathTex tex="P_{\alpha}" />
+            </Typography>
+            {total <= MATRIX_MAX_DIM ? (
+              <Box sx={{ overflowX: 'auto' }}>
+                <MathTex display tex={fullPermMatrixTex(mapping, n)} />
+              </Box>
+            ) : (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                n = {n} ⇒ {total} × {total} 矩陣過大，略去顯示（僅 n ≤ 4 時繪製）。
               </Typography>
             )}
           </Box>

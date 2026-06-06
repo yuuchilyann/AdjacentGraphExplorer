@@ -62,86 +62,78 @@ const ketTex = (i: number, n: number): string =>
   n === 0 ? '|\\,\\rangle' : `|${i.toString(2).padStart(n, '0')}\\rangle`;
 
 /**
- * Cauchy two-line notation for an arbitrary (partial) permutation.
- *
- * annotated = true  → three-row form: decimal-index header + \hline + two data
- *                     rows, all inside the same array for perfect alignment.
- * annotated = false → standard two-row pmatrix (domain / codomain only).
- *
+ * Cauchy two-line (standard) notation for an arbitrary (partial) permutation.
  * Unmapped sources are rendered as `\cdot`.
  */
-function fullPermTwoLineTex(
-  mapping: Map<number, number>,
-  n: number,
-  annotated: boolean,
-): string {
+function fullPermTwoLineTex(mapping: Map<number, number>, n: number): string {
   const N = 1 << n;
-  const colSpec = Array.from({ length: N }, () => 'c').join('');
-
   const topRow = Array.from({ length: N }, (_, i) => ketTex(i, n)).join(' & ');
   const botRow = Array.from({ length: N }, (_, i) => {
     const t = mapping.get(i);
     return t !== undefined ? ketTex(t, n) : '\\cdot';
   }).join(' & ');
-
-  if (!annotated) {
-    return `\\begin{pmatrix} ${topRow} \\\\ ${botRow} \\end{pmatrix}`;
-  }
-
-  const gray = '#9e9e9e';
-  const decRow = Array.from({ length: N }, (_, i) =>
-    `\\scriptstyle\\textcolor{${gray}}{|${i}\\rangle}`,
-  ).join(' & ');
-
-  return (
-    `\\left(\\begin{array}{${colSpec}} ` +
-    `${decRow} \\\\[2pt] \\hline \\\\[-6pt] ` +
-    `${topRow} \\\\ ${botRow} ` +
-    `\\end{array}\\right)`
-  );
+  return `\\begin{pmatrix} ${topRow} \\\\ ${botRow} \\end{pmatrix}`;
 }
 
 const COLOR_COMMITTED = '#2e7d32';
 const COLOR_COMMITTED_FAR = '#ed6c02';
 
 /**
- * Full permutation matrix P_α in the same style as ElementaryRowMatrixPanel:
- * left ket-label column + pmatrix + "= P_α".
+ * Full permutation matrix P_α.
  *
- * Row r has 1 at column α(r); non-fixed-point entries (α(r) ≠ r) are
- * highlighted orange.  Unmapped rows show \cdot for every cell.
+ * Standard mode: left ket-label column + pmatrix + "= P_α"
+ *   (same style as ElementaryRowMatrixPanel).
+ *
+ * Annotated mode: a single \left(\begin{array}{c|...}\right) that embeds
+ *   decimal-index labels for both rows and columns, separated by | and \hline.
+ *   Perfect column alignment is guaranteed because everything is one array.
+ *
+ * Row r has 1 at column α(r); non-fixed-point entries are highlighted orange.
+ * Unmapped rows show \cdot for every cell.
  */
-function fullPermMatrixTex(mapping: Map<number, number>, n: number): string {
+function fullPermMatrixTex(
+  mapping: Map<number, number>,
+  n: number,
+  annotated: boolean,
+): string {
   const N = 1 << n;
-  const labels: string[] = [];
-  const rows: string[] = [];
+  const gray = '#9e9e9e';
+  const decKet = (i: number) => `\\scriptstyle\\textcolor{${gray}}{|${i}\\rangle}`;
 
-  for (let r = 0; r < N; r++) {
+  const entryFor = (r: number, c: number): string => {
     const target = mapping.get(r);
-    const isNonFixed = target !== undefined && target !== r;
+    if (target === undefined) return '\\cdot';
+    const isOne = c === target;
+    const isNonFixed = target !== r;
+    return isOne && isNonFixed ? `\\textcolor{${MATRIX_HIGHLIGHT}}{1}` : isOne ? '1' : '0';
+  };
 
-    const cells: string[] = [];
-    for (let c = 0; c < N; c++) {
-      if (target === undefined) {
-        cells.push('\\cdot');
-      } else {
-        const isOne = c === target;
-        cells.push(
-          isOne && isNonFixed
-            ? `\\textcolor{${MATRIX_HIGHLIGHT}}{1}`
-            : isOne
-              ? '1'
-              : '0',
-        );
-      }
+  if (!annotated) {
+    const labels: string[] = [];
+    const rows: string[] = [];
+    for (let r = 0; r < N; r++) {
+      rows.push(Array.from({ length: N }, (_, c) => entryFor(r, c)).join(' & '));
+      labels.push(ketTex(r, n));
     }
-    rows.push(cells.join(' & '));
-    labels.push(ketTex(r, n));
+    const labelCol = `\\begin{matrix} ${labels.join(' \\\\ ')} \\end{matrix}`;
+    const matrix = `\\begin{pmatrix} ${rows.join(' \\\\ ')} \\end{pmatrix}`;
+    return `\\begin{array}{cc} ${labelCol} & ${matrix} \\end{array} \\;=\\; P_{\\alpha}`;
   }
 
-  const labelCol = `\\begin{matrix} ${labels.join(' \\\\ ')} \\end{matrix}`;
-  const matrix = `\\begin{pmatrix} ${rows.join(' \\\\ ')} \\end{pmatrix}`;
-  return `\\begin{array}{cc} ${labelCol} & ${matrix} \\end{array} \\;=\\; P_{\\alpha}`;
+  // Annotated: single array — first col = row labels, first row = col labels
+  const colSpec = `c|${'c'.repeat(N)}`;
+  const colHeaderRow =
+    `& ${Array.from({ length: N }, (_, i) => decKet(i)).join(' & ')} \\\\[2pt]`;
+  const dataRows = Array.from({ length: N }, (_, r) =>
+    `${decKet(r)} & ${Array.from({ length: N }, (_, c) => entryFor(r, c)).join(' & ')}`,
+  ).join(' \\\\ ');
+
+  return (
+    `\\left(\\begin{array}{${colSpec}} ` +
+    `${colHeaderRow} \\hline \\\\[-6pt] ` +
+    `${dataRows} ` +
+    `\\end{array}\\right) \\;=\\; P_{\\alpha}`
+  );
 }
 const COLOR_PREVIEW = '#ed6c02';
 const COLOR_AVAILABLE = '#1976d2';
@@ -155,7 +147,7 @@ export function PermutationBuilder({
   embedded = false,
 }: PermutationBuilderProps) {
   const [mapping, setMapping] = useState<Map<number, number>>(new Map());
-  const [twoLineAnnotated, setTwoLineAnnotated] = useState(true);
+  const [matrixAnnotated, setMatrixAnnotated] = useState(true);
 
   useEffect(() => {
     onMappingChange?.(mapping);
@@ -655,22 +647,38 @@ export function PermutationBuilder({
         </Box>
         {mapping.size > 0 && (
           <Box>
+            <Typography variant="caption" color="text.secondary">
+              雙行（Cauchy）表示法
+            </Typography>
+            {total <= TWO_LINE_MAX_DIM ? (
+              <Box sx={{ overflowX: 'auto' }}>
+                <MathTex display tex={fullPermTwoLineTex(mapping, n)} />
+              </Box>
+            ) : (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                n = {n} ⇒ 2ⁿ = {total}，欄數過多，略去完整展開。
+              </Typography>
+            )}
+          </Box>
+        )}
+        {mapping.size > 0 && (
+          <Box>
             <Stack direction="row" sx={{ alignItems: 'center', mb: 0.5 }} spacing={1}>
               <Typography variant="caption" color="text.secondary" sx={{ flexGrow: 1 }}>
-                雙行（Cauchy）表示法
+                排列矩陣 <MathTex tex="P_{\alpha}" />
               </Typography>
               <Tooltip
                 title={
-                  twoLineAnnotated
-                    ? '加注模式：第一行為十進位索引（教學用）'
-                    : '標準模式：純 Cauchy 雙行表示法'
+                  matrixAnnotated
+                    ? '加注模式：矩陣內嵌十進位行／列標籤（教學用）'
+                    : '標準模式：純排列矩陣'
                 }
               >
                 <ToggleButtonGroup
-                  value={twoLineAnnotated ? 'annotated' : 'standard'}
+                  value={matrixAnnotated ? 'annotated' : 'standard'}
                   exclusive
                   size="small"
-                  onChange={(_, v) => v && setTwoLineAnnotated(v === 'annotated')}
+                  onChange={(_, v) => v && setMatrixAnnotated(v === 'annotated')}
                 >
                   <ToggleButton value="annotated">
                     <PersonIcon sx={{ fontSize: 14, mr: 0.5 }} />
@@ -683,25 +691,9 @@ export function PermutationBuilder({
                 </ToggleButtonGroup>
               </Tooltip>
             </Stack>
-            {total <= TWO_LINE_MAX_DIM ? (
-              <Box sx={{ overflowX: 'auto' }}>
-                <MathTex display tex={fullPermTwoLineTex(mapping, n, twoLineAnnotated)} />
-              </Box>
-            ) : (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                n = {n} ⇒ 2ⁿ = {total}，欄數過多，略去完整展開。
-              </Typography>
-            )}
-          </Box>
-        )}
-        {mapping.size > 0 && (
-          <Box>
-            <Typography variant="caption" color="text.secondary">
-              排列矩陣 <MathTex tex="P_{\alpha}" />
-            </Typography>
             {total <= MATRIX_MAX_DIM ? (
               <Box sx={{ overflowX: 'auto' }}>
-                <MathTex display tex={fullPermMatrixTex(mapping, n)} />
+                <MathTex display tex={fullPermMatrixTex(mapping, n, matrixAnnotated)} />
               </Box>
             ) : (
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>

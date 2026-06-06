@@ -7,6 +7,8 @@ import {
   Divider,
   Paper,
   Stack,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from '@mui/material';
@@ -15,6 +17,8 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ShuffleIcon from '@mui/icons-material/Shuffle';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import LoopIcon from '@mui/icons-material/Loop';
+import PersonIcon from '@mui/icons-material/Person';
+import SchoolIcon from '@mui/icons-material/School';
 
 import {
   cycleDecomposition,
@@ -26,6 +30,7 @@ import {
   snapTarget,
 } from '../lib/permutation';
 import { LayeredView } from './LayeredView';
+import { Math as MathTex } from './Math';
 import { SvgViewport } from './SvgViewport';
 
 export type PermutationBuilderProps = {
@@ -43,6 +48,53 @@ export type PermutationBuilderProps = {
   embedded?: boolean;
 };
 
+/** Max basis-state count for which we render the full two-line notation (n ≤ 5). */
+const TWO_LINE_MAX_DIM = 32;
+
+/** LaTeX ket string, e.g. |01⟩ */
+const ketTex = (i: number, n: number): string =>
+  n === 0 ? '|\\,\\rangle' : `|${i.toString(2).padStart(n, '0')}\\rangle`;
+
+/**
+ * Cauchy two-line notation for an arbitrary (partial) permutation.
+ *
+ * annotated = true  → three-row form: decimal-index header + \hline + two data
+ *                     rows, all inside the same array for perfect alignment.
+ * annotated = false → standard two-row pmatrix (domain / codomain only).
+ *
+ * Unmapped sources are rendered as `\cdot`.
+ */
+function fullPermTwoLineTex(
+  mapping: Map<number, number>,
+  n: number,
+  annotated: boolean,
+): string {
+  const N = 1 << n;
+  const colSpec = Array.from({ length: N }, () => 'c').join('');
+
+  const topRow = Array.from({ length: N }, (_, i) => ketTex(i, n)).join(' & ');
+  const botRow = Array.from({ length: N }, (_, i) => {
+    const t = mapping.get(i);
+    return t !== undefined ? ketTex(t, n) : '\\cdot';
+  }).join(' & ');
+
+  if (!annotated) {
+    return `\\begin{pmatrix} ${topRow} \\\\ ${botRow} \\end{pmatrix}`;
+  }
+
+  const gray = '#9e9e9e';
+  const decRow = Array.from({ length: N }, (_, i) =>
+    `\\scriptstyle\\textcolor{${gray}}{|${i}\\rangle}`,
+  ).join(' & ');
+
+  return (
+    `\\left(\\begin{array}{${colSpec}} ` +
+    `${decRow} \\\\[2pt] \\hline \\\\[-6pt] ` +
+    `${topRow} \\\\ ${botRow} ` +
+    `\\end{array}\\right)`
+  );
+}
+
 const COLOR_COMMITTED = '#2e7d32';
 const COLOR_COMMITTED_FAR = '#ed6c02';
 const COLOR_PREVIEW = '#ed6c02';
@@ -57,6 +109,7 @@ export function PermutationBuilder({
   embedded = false,
 }: PermutationBuilderProps) {
   const [mapping, setMapping] = useState<Map<number, number>>(new Map());
+  const [twoLineAnnotated, setTwoLineAnnotated] = useState(true);
 
   useEffect(() => {
     onMappingChange?.(mapping);
@@ -554,6 +607,47 @@ export function PermutationBuilder({
             α = {formatCycles(cycles, n)}
           </Typography>
         </Box>
+        {mapping.size > 0 && (
+          <Box>
+            <Stack direction="row" sx={{ alignItems: 'center', mb: 0.5 }} spacing={1}>
+              <Typography variant="caption" color="text.secondary" sx={{ flexGrow: 1 }}>
+                雙行（Cauchy）表示法
+              </Typography>
+              <Tooltip
+                title={
+                  twoLineAnnotated
+                    ? '加注模式：第一行為十進位索引（教學用）'
+                    : '標準模式：純 Cauchy 雙行表示法'
+                }
+              >
+                <ToggleButtonGroup
+                  value={twoLineAnnotated ? 'annotated' : 'standard'}
+                  exclusive
+                  size="small"
+                  onChange={(_, v) => v && setTwoLineAnnotated(v === 'annotated')}
+                >
+                  <ToggleButton value="annotated">
+                    <PersonIcon sx={{ fontSize: 14, mr: 0.5 }} />
+                    加注
+                  </ToggleButton>
+                  <ToggleButton value="standard">
+                    <SchoolIcon sx={{ fontSize: 14, mr: 0.5 }} />
+                    標準
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Tooltip>
+            </Stack>
+            {total <= TWO_LINE_MAX_DIM ? (
+              <Box sx={{ overflowX: 'auto' }}>
+                <MathTex display tex={fullPermTwoLineTex(mapping, n, twoLineAnnotated)} />
+              </Box>
+            ) : (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                n = {n} ⇒ 2ⁿ = {total}，欄數過多，略去完整展開。
+              </Typography>
+            )}
+          </Box>
+        )}
         {selected !== null && (
           <Typography variant="caption" color="text.secondary">
             來源 = {ketLabel(selected)}；藍色 = 合法目標 (d ≤ 1)、橙色 = 遠端目標 (d ≥

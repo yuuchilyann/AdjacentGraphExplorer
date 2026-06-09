@@ -81,7 +81,7 @@ const COLOR_COMMITTED_FAR = '#ed6c02';
 /**
  * Full permutation matrix P_α.
  *
- * Standard mode: left ket-label column + pmatrix + "= P_α"
+ * Standard mode: left ket-label column + bmatrix + "= P_α"
  *   (same style as ElementaryRowMatrixPanel).
  *
  * Annotated mode: a single \left(\begin{array}{c|...}\right) that embeds
@@ -116,7 +116,7 @@ function fullPermMatrixTex(
       labels.push(ketTex(r, n));
     }
     const labelCol = `\\begin{matrix} ${labels.join(' \\\\ ')} \\end{matrix}`;
-    const matrix = `\\begin{pmatrix} ${rows.join(' \\\\ ')} \\end{pmatrix}`;
+    const matrix = `\\begin{bmatrix} ${rows.join(' \\\\ ')} \\end{bmatrix}`;
     return `\\begin{array}{cc} ${labelCol} & ${matrix} \\end{array} \\;=\\; P_{\\alpha}`;
   }
 
@@ -129,10 +129,10 @@ function fullPermMatrixTex(
   ).join(' \\\\ ');
 
   return (
-    `\\left(\\begin{array}{${colSpec}} ` +
+    `\\left[\\begin{array}{${colSpec}} ` +
     `${colHeaderRow} \\hline \\\\[-6pt] ` +
     `${dataRows} ` +
-    `\\end{array}\\right) \\;=\\; P_{\\alpha}`
+    `\\end{array}\\right] \\;=\\; P_{\\alpha}`
   );
 }
 const COLOR_PREVIEW = '#ed6c02';

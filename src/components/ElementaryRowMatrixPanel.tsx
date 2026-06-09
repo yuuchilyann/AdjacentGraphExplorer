@@ -169,7 +169,7 @@ function elementaryRowMatrixTex(i: number, j: number, n: number): string {
   }
 
   const labelCol = `\\begin{matrix} ${labels.join(' \\\\ ')} \\end{matrix}`;
-  const matrix = `\\begin{pmatrix} ${rows.join(' \\\\ ')} \\end{pmatrix}`;
+  const matrix = `\\begin{bmatrix} ${rows.join(' \\\\ ')} \\end{bmatrix}`;
   const rij = `R_{(${ket(i, n)},\\,${ket(j, n)})}`;
 
   return `\\begin{array}{cc} ${labelCol} & ${matrix} \\end{array} \\;=\\; ${rij}`;

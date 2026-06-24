@@ -2,8 +2,10 @@ import { useRef, useState } from 'react';
 import {
   Box,
   Divider,
+  FormControlLabel,
   Paper,
   Stack,
+  Switch,
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
@@ -72,6 +74,10 @@ export function QuantumCircuitView({
 }: QuantumCircuitViewProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [mode, setMode] = useState<Mode>('mixed');
+  // The orange band marks the active layer (current playback position). It is
+  // useful on-screen but gets baked into the "Copy as PNG" export, so let the
+  // user hide it to capture a clean, standard circuit diagram.
+  const [showPlayhead, setShowPlayhead] = useState(true);
 
   if (n <= 0 || realization.layers.length === 0) return null;
 
@@ -114,6 +120,9 @@ export function QuantumCircuitView({
 
   type Status = 'past' | 'active' | 'future';
   const gateStatus = (k: number): Status => {
+    // With the playhead hidden, render every gate as a plain (black, solid)
+    // gate so "Copy as PNG" yields a standard circuit with no playback cues.
+    if (!showPlayhead) return 'past';
     if (k + 1 < step) return 'past';
     if (k + 1 === step) return 'active';
     return 'future';
@@ -237,6 +246,24 @@ export function QuantumCircuitView({
             </ToggleButtonGroup>
           </Tooltip>
         </Stack>
+
+        <Tooltip title="顯示對齊目前播放位置的橘色高亮區域。關閉後「複製為 PNG」即為標準量子電路圖。">
+          <FormControlLabel
+            sx={{ ml: 0, mr: 0 }}
+            control={
+              <Switch
+                size="small"
+                checked={showPlayhead}
+                onChange={(_, v) => setShowPlayhead(v)}
+              />
+            }
+            label={
+              <Typography variant="caption" color="text.secondary">
+                播放位置高亮
+              </Typography>
+            }
+          />
+        </Tooltip>
       </Stack>
 
       <SvgViewport
@@ -295,7 +322,7 @@ export function QuantumCircuitView({
             return (
               <g key={`gate-${k}`}>
                 {/* Active gate highlight band — spans the entire layer footprint */}
-                {status === 'active' && (
+                {showPlayhead && status === 'active' && (
                   <rect
                     x={xLayerLeft(k) + 4}
                     y={padY - 6}
@@ -433,7 +460,8 @@ export function QuantumCircuitView({
           })}
 
           {/* Future-wire dim overlay: redraw the tail dim if step < total */}
-          {step < gates.length &&
+          {showPlayhead &&
+            step < gates.length &&
             Array.from({ length: n }, (_, q) => q).map((q) => {
               const y = yForQ(q);
               const x1 = step === 0 ? startX - 6 : xLayerRight(step - 1);

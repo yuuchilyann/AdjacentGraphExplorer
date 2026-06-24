@@ -32,6 +32,7 @@ import {
 import { LayeredView } from './LayeredView';
 import { Math as MathTex } from './Math';
 import { SvgViewport } from './SvgViewport';
+import { useI18n } from '../i18n';
 
 export type PermutationBuilderProps = {
   n: number;
@@ -146,6 +147,7 @@ export function PermutationBuilder({
   onMappingChange,
   embedded = false,
 }: PermutationBuilderProps) {
+  const { t, tStr } = useI18n();
   const [mapping, setMapping] = useState<Map<number, number>>(new Map());
   const [matrixAnnotated, setMatrixAnnotated] = useState(true);
 
@@ -305,10 +307,10 @@ export function PermutationBuilder({
 
   const selfLoopTooltip =
     selfLoopCandidates.length > 0
-      ? `把剩餘 ${selfLoopCandidates.length} 個未連的來源補成 self-loop（|x⟩→|x⟩，固定點）`
+      ? tStr('builder.selfLoop.tooltip.fill', { count: selfLoopCandidates.length })
       : complete
-        ? '排列已完整，無需補 self-loop'
-        : '剩餘未連來源的自身目標已被佔用，無法自動補 self-loop（請手動處理或清除衝突）';
+        ? tStr('builder.selfLoop.tooltip.complete')
+        : tStr('builder.selfLoop.tooltip.blocked');
 
   // 隨機完整 bijection（Fisher-Yates）— 通常會含 d ≥ 2 邊，會自動觸發 Layered Realization。
   const randomizeAny = () => {
@@ -381,17 +383,17 @@ export function PermutationBuilder({
       >
         <Box sx={{ flexGrow: 1, minWidth: 0 }}>
           <Typography variant="overline" color="text.secondary">
-            Permutation Builder — 連連看
+            {t('builder.title')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            左欄點/拖到右欄完成連線。非法或衝突的釋放會 silent-snap 到最近的合法可用目標。
+            {t('builder.subtitle')}
           </Typography>
         </Box>
         <Chip
           size="small"
           icon={complete ? <CheckCircleIcon /> : undefined}
           color={complete ? 'success' : 'default'}
-          label={`進度 ${mapping.size}/${total}`}
+          label={t('builder.progress', { size: mapping.size, total })}
           sx={{ flexShrink: 0 }}
         />
       </Stack>
@@ -421,16 +423,16 @@ export function PermutationBuilder({
           <Button
             startIcon={<AutoFixHighIcon />}
             onClick={randomizeLegal}
-            title="隨機產生 G_α ⊆ Adjacent Bipartite Graph 的合法排列（所有邊 d ≤ 1）"
+            title={tStr('builder.random.legal.tooltip')}
           >
-            隨機合法
+            {t('builder.random.legal')}
           </Button>
           <Button
             startIcon={<ShuffleIcon />}
             onClick={randomizeAny}
-            title="隨機產生任意完整排列（通常含 d ≥ 2 邊，會觸發 Layered Realization）"
+            title={tStr('builder.random.any.tooltip')}
           >
-            隨機任意
+            {t('builder.random.any')}
           </Button>
         </ButtonGroup>
         <Tooltip title={selfLoopTooltip}>
@@ -443,7 +445,7 @@ export function PermutationBuilder({
               onClick={fillSelfLoops}
               disabled={selfLoopCandidates.length === 0}
             >
-              補滿 self-loop
+              {t('builder.fillSelfLoop')}
             </Button>
           </span>
         </Tooltip>
@@ -453,7 +455,7 @@ export function PermutationBuilder({
           onClick={reset}
           disabled={mapping.size === 0 && selected === null}
         >
-          清除
+          {t('builder.reset')}
         </Button>
       </Stack>
 
@@ -636,7 +638,7 @@ export function PermutationBuilder({
       <Stack spacing={1} sx={{ mt: 1.5 }}>
         <Box>
           <Typography variant="caption" color="text.secondary">
-            Cycle 表示
+            {t('builder.cycleLabel')}
           </Typography>
           <Typography
             variant="body2"
@@ -648,7 +650,7 @@ export function PermutationBuilder({
         {mapping.size > 0 && (
           <Box>
             <Typography variant="caption" color="text.secondary">
-              雙行（Cauchy）表示法
+              {t('builder.twoLineLabel')}
             </Typography>
             {total <= TWO_LINE_MAX_DIM ? (
               <Box sx={{ overflowX: 'auto' }}>
@@ -656,7 +658,7 @@ export function PermutationBuilder({
               </Box>
             ) : (
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                n = {n} ⇒ 2ⁿ = {total}，欄數過多，略去完整展開。
+                {t('builder.twoLineOmitted', { n, total })}
               </Typography>
             )}
           </Box>
@@ -665,13 +667,13 @@ export function PermutationBuilder({
           <Box>
             <Stack direction="row" sx={{ alignItems: 'center', mb: 0.5 }} spacing={1}>
               <Typography variant="caption" color="text.secondary" sx={{ flexGrow: 1 }}>
-                排列矩陣 <MathTex tex="P_{\alpha}" />
+                {t('builder.matrixLabel')}
               </Typography>
               <Tooltip
                 title={
                   matrixAnnotated
-                    ? '加注模式：矩陣內嵌十進位行／列標籤（教學用）'
-                    : '標準模式：純排列矩陣'
+                    ? tStr('builder.matrix.tooltip.annotated')
+                    : tStr('builder.matrix.tooltip.standard')
                 }
               >
                 <ToggleButtonGroup
@@ -682,11 +684,11 @@ export function PermutationBuilder({
                 >
                   <ToggleButton value="annotated">
                     <PersonIcon sx={{ fontSize: 14, mr: 0.5 }} />
-                    加注
+                    {t('builder.matrix.annotated')}
                   </ToggleButton>
                   <ToggleButton value="standard">
                     <SchoolIcon sx={{ fontSize: 14, mr: 0.5 }} />
-                    標準
+                    {t('builder.matrix.standard')}
                   </ToggleButton>
                 </ToggleButtonGroup>
               </Tooltip>
@@ -697,15 +699,14 @@ export function PermutationBuilder({
               </Box>
             ) : (
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                n = {n} ⇒ {total} × {total} 矩陣過大，略去顯示（僅 n ≤ 4 時繪製）。
+                {t('builder.matrixOmitted', { n, total })}
               </Typography>
             )}
           </Box>
         )}
         {selected !== null && (
           <Typography variant="caption" color="text.secondary">
-            來源 = {ketLabel(selected)}；藍色 = 合法目標 (d ≤ 1)、橙色 = 遠端目標 (d ≥
-            2，會自動進入分層)、紅色 = 已被佔用 (會 snap)。
+            {t('builder.selectedHint', { ket: ketLabel(selected) })}
           </Typography>
         )}
         {complete && (() => {
@@ -721,8 +722,8 @@ export function PermutationBuilder({
               sx={{ color: legal ? COLOR_COMMITTED : COLOR_COMMITTED_FAR }}
             >
               {legal
-                ? `✓ G_α ⊆ Adjacent Bipartite Graph（max d = ${maxD}）`
-                : `△ 含 d ≥ 2 邊（max d = ${maxD}），需要分層實現 — 詳見下方 Layered Realization`}
+                ? t('builder.result.legal', { maxD })
+                : t('builder.result.illegal', { maxD })}
             </Typography>
           );
         })()}

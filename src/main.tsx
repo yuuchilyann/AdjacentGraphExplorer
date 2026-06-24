@@ -8,6 +8,7 @@ import '@fontsource/roboto/700.css';
 
 import App from './App';
 import { theme } from './theme';
+import { I18nProvider } from './i18n';
 
 const container = document.getElementById('root');
 if (!container) {
@@ -16,9 +17,11 @@ if (!container) {
 
 createRoot(container).render(
   <StrictMode>
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <App />
-    </ThemeProvider>
+    <I18nProvider>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <App />
+      </ThemeProvider>
+    </I18nProvider>
   </StrictMode>,
 );

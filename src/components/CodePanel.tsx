@@ -8,6 +8,8 @@ import 'prismjs/components/prism-python';
 // MUI <pre> styling (background, font) and just let the spans get colored.
 import 'prismjs/themes/prism.css';
 
+import { useI18n } from '../i18n';
+
 export type CodePanelProps = {
   code: string;
   /** Filename (no extension) for the download; `.py` is appended. */
@@ -20,6 +22,7 @@ export type CodePanelProps = {
  * tabs share the same export affordance.
  */
 export function CodePanel({ code, filename }: CodePanelProps) {
+  const { tStr } = useI18n();
   const [toast, setToast] = useState<{ open: boolean; msg: string }>({
     open: false,
     msg: '',
@@ -34,9 +37,9 @@ export function CodePanel({ code, filename }: CodePanelProps) {
   const onCopy = async () => {
     try {
       await navigator.clipboard.writeText(code);
-      flash('已複製 Qiskit 程式碼到剪貼簿');
+      flash(tStr('export.toast.codeCopied'));
     } catch (e) {
-      flash(`複製失敗：${(e as Error).message}`);
+      flash(tStr('export.toast.copyFailed', { error: (e as Error).message }));
     }
   };
 
@@ -51,9 +54,9 @@ export function CodePanel({ code, filename }: CodePanelProps) {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      flash(`已下載 ${filename}.py`);
+      flash(tStr('export.toast.pyDownloaded', { filename }));
     } catch (e) {
-      flash(`下載失敗：${(e as Error).message}`);
+      flash(tStr('export.toast.downloadFailed', { error: (e as Error).message }));
     }
   };
 
@@ -92,12 +95,12 @@ export function CodePanel({ code, filename }: CodePanelProps) {
         }}
       >
         <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-          <Tooltip title="複製程式碼">
+          <Tooltip title={tStr('export.copyCode.tooltip')}>
             <IconButton size="small" onClick={onCopy} aria-label="copy code">
               <ContentCopyIcon fontSize="small" />
             </IconButton>
           </Tooltip>
-          <Tooltip title="下載 .py">
+          <Tooltip title={tStr('export.download.py.tooltip')}>
             <IconButton
               size="small"
               onClick={onDownload}

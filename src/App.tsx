@@ -21,7 +21,9 @@ import { LegalGraphView } from './components/LegalGraphView';
 import { PermutationBuilder } from './components/PermutationBuilder';
 import { PermutationChain } from './components/PermutationChain';
 import { GuidedBuildView } from './components/GuidedBuildView';
+import { LanguageSwitcher } from './components/LanguageSwitcher';
 import { buildLegalGraph } from './lib/hypercube';
+import { useI18n } from './i18n';
 
 type ViewMode = 'legal' | 'builder' | 'chain' | 'guided';
 
@@ -29,6 +31,7 @@ export default function App() {
   const [n, setN] = useState(2);
   const [mode, setMode] = useState<ViewMode>('legal');
   const graph = useMemo(() => buildLegalGraph(n), [n]);
+  const { t } = useI18n();
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -36,14 +39,15 @@ export default function App() {
         <Toolbar>
           <HubIcon sx={{ mr: 1.5 }} />
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Adjacent Graph Explorer
+            {t('app.title')}
           </Typography>
           <Chip
-            label="experimental"
+            label={t('app.experimental')}
             size="small"
             color="secondary"
             sx={{ color: 'common.white' }}
           />
+          <LanguageSwitcher />
         </Toolbar>
       </AppBar>
 
@@ -67,19 +71,19 @@ export default function App() {
             >
               <ToggleButton value="legal">
                 <AccountTreeIcon sx={{ mr: 1, fontSize: 18 }} />
-                Adjacent Bipartite Graph
+                {t('app.view.legal')}
               </ToggleButton>
               <ToggleButton value="builder">
                 <ShuffleIcon sx={{ mr: 1, fontSize: 18 }} />
-                Permutation Builder
+                {t('app.view.builder')}
               </ToggleButton>
               <ToggleButton value="chain">
                 <LinkIcon sx={{ mr: 1, fontSize: 18 }} />
-                Permutation Chain
+                {t('app.view.chain')}
               </ToggleButton>
               <ToggleButton value="guided">
                 <BuildIcon sx={{ mr: 1, fontSize: 18 }} />
-                Guided Build
+                {t('app.view.guided')}
               </ToggleButton>
             </ToggleButtonGroup>
           </Stack>
@@ -96,7 +100,7 @@ export default function App() {
         sx={{ py: 2, textAlign: 'center', color: 'text.secondary' }}
       >
         <Typography variant="caption">
-          © {new Date().getFullYear()} Adjacent Graph Explorer
+          {t('app.footer', { year: new Date().getFullYear() })}
         </Typography>
       </Box>
     </Box>

@@ -4,6 +4,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DownloadIcon from '@mui/icons-material/Download';
 
 import { copySvgAsPng, downloadSvgAsPng } from '../lib/svgExport';
+import { useI18n } from '../i18n';
 
 export type ExportActionsProps = {
   svgRef: RefObject<SVGSVGElement | null>;
@@ -18,6 +19,7 @@ export function ExportActions({
   filename,
   scale = 2,
 }: ExportActionsProps) {
+  const { tStr } = useI18n();
   const [toast, setToast] = useState<{
     open: boolean;
     msg: string;
@@ -28,40 +30,45 @@ export function ExportActions({
   const onCopy = async () => {
     const svg = svgRef.current;
     if (!svg) {
-      flash('找不到要複製的圖');
+      flash(tStr('export.toast.svgNotFoundCopy'));
       return;
     }
     try {
       await copySvgAsPng(svg, scale);
-      flash('已複製 PNG 到剪貼簿');
+      flash(tStr('export.toast.pngCopied'));
     } catch (e) {
-      flash(`複製失敗：${(e as Error).message}`);
+      const raw = (e as Error).message;
+      const error =
+        raw === 'NO_CLIPBOARD_IMAGE_API'
+          ? tStr('export.err.noClipboardImageApi')
+          : raw;
+      flash(tStr('export.toast.copyFailed', { error }));
     }
   };
 
   const onDownload = async () => {
     const svg = svgRef.current;
     if (!svg) {
-      flash('找不到要下載的圖');
+      flash(tStr('export.toast.svgNotFoundDownload'));
       return;
     }
     try {
       await downloadSvgAsPng(svg, filename, scale);
-      flash(`已下載 ${filename}.png`);
+      flash(tStr('export.toast.pngDownloaded', { filename }));
     } catch (e) {
-      flash(`下載失敗：${(e as Error).message}`);
+      flash(tStr('export.toast.downloadFailed', { error: (e as Error).message }));
     }
   };
 
   return (
     <>
       <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-        <Tooltip title="複製為 PNG">
+        <Tooltip title={tStr('export.png.copy.tooltip')}>
           <IconButton size="small" onClick={onCopy} aria-label="copy as png">
             <ContentCopyIcon fontSize="small" />
           </IconButton>
         </Tooltip>
-        <Tooltip title="下載 PNG">
+        <Tooltip title={tStr('export.png.download.tooltip')}>
           <IconButton
             size="small"
             onClick={onDownload}

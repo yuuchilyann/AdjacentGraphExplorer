@@ -11,6 +11,7 @@ import {
 } from '@mui/material';
 import type { LegalEdge, LegalGraph } from '../types';
 import { SvgViewport } from './SvgViewport';
+import { useI18n } from '../i18n';
 
 export type LegalGraphViewProps = {
   graph: LegalGraph;
@@ -22,6 +23,7 @@ const COLOR_HIGHLIGHT = '#ed6c02';
 
 export function LegalGraphView({ graph }: LegalGraphViewProps) {
   const { n, states, edges } = graph;
+  const { t } = useI18n();
   const [showSelfLoops, setShowSelfLoops] = useState(true);
   const [hover, setHover] = useState<{ side: 'left' | 'right'; index: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -76,10 +78,10 @@ export function LegalGraphView({ graph }: LegalGraphViewProps) {
       >
         <Box sx={{ flexGrow: 1, minWidth: 0 }}>
           <Typography variant="overline" color="text.secondary">
-            合法圖 (Legal Graph) — Bipartite view
+            {t('legal.title')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            左欄為來源 |x⟩，右欄為目標 |y⟩，連線代表 Hamming(x, y) ≤ 1（含 self-loop）。
+            {t('legal.subtitle')}
           </Typography>
         </Box>
       </Stack>
@@ -109,12 +111,16 @@ export function LegalGraphView({ graph }: LegalGraphViewProps) {
           <Chip
             size="small"
             sx={{ bgcolor: COLOR_SELF, color: 'white' }}
-            label={`self-loop × ${edges.filter((e) => e.hammingDistance === 0).length}`}
+            label={t('legal.chip.selfLoop', {
+              count: edges.filter((e) => e.hammingDistance === 0).length,
+            })}
           />
           <Chip
             size="small"
             sx={{ bgcolor: COLOR_FLIP, color: 'white' }}
-            label={`bit-flip × ${edges.filter((e) => e.hammingDistance === 1).length}`}
+            label={t('legal.chip.bitFlip', {
+              count: edges.filter((e) => e.hammingDistance === 1).length,
+            })}
           />
         </Stack>
         <FormControlLabel
@@ -126,7 +132,7 @@ export function LegalGraphView({ graph }: LegalGraphViewProps) {
               onChange={(_, c) => setShowSelfLoops(c)}
             />
           }
-          label="顯示 self-loop"
+          label={t('legal.showSelfLoops')}
         />
       </Stack>
 
@@ -270,7 +276,7 @@ export function LegalGraphView({ graph }: LegalGraphViewProps) {
       </SvgViewport>
 
       <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-        提示：滑鼠移到左欄 |x⟩ 醒目其 outgoing 合法邊 (x → y)；移到右欄 |y⟩ 醒目其 incoming 合法邊 (x → y)。
+        {t('legal.hint')}
       </Typography>
     </Paper>
   );

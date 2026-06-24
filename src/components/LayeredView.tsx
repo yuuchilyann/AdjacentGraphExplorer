@@ -33,6 +33,7 @@ import { QiskitPackageView } from './QiskitPackageView';
 import { ElementaryRowMatrixPanel } from './ElementaryRowMatrixPanel';
 import { LearningPanel } from './LearningPanel';
 import { SvgViewport } from './SvgViewport';
+import { useI18n } from '../i18n';
 
 export type LayeredViewProps = {
   mapping: Mapping;
@@ -63,6 +64,7 @@ export function LayeredView({
   n,
   showLearningPanel = true,
 }: LayeredViewProps) {
+  const { t, tStr } = useI18n();
   const [strategy, setStrategy] = useState<Strategy>('above');
   const [reduced, setReduced] = useState(false);
   const [walkAware, setWalkAware] = useState(false);
@@ -178,27 +180,26 @@ export function LayeredView({
       >
         <Box sx={{ flexGrow: 1, minWidth: 0 }}>
           <Typography variant="overline" color="text.secondary">
-            Layered Realization — Wiring Diagram
+            {t('layered.title')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            每欄是固定的 \|0⟩..\|2ⁿ-1⟩ 軌道；每條 strand 起點代表 source 的某個 \|x⟩，
-            沿著各 layer 在軌道間穿梭，終點即為 α(\|x⟩)。共 {realization.layers.length}{' '}
-            層 legal 2-cycle（max direct d = {realization.maxDirectDistance}）
-            {reduced && cancelledPairs > 0 ? (
-              <>
-                {' '}— 已消去 {cancelledPairs} 對 involution 虛工（原 {canonical.layers.length} 層）
-              </>
-            ) : reduced ? (
-              <> — 無可消去的虛工</>
-            ) : null}
-            。
+            {t('layered.subtitle', {
+              layers: realization.layers.length,
+              maxDirectDistance: realization.maxDirectDistance,
+              reduced,
+              cancelledPairs,
+              canonicalLayers: canonical.layers.length,
+            })}
           </Typography>
         </Box>
         <Tooltip
           title={
             realization.verification.ok
-              ? '已驗證：每條 strand 終點 = target，且每個 layer 都是 d ≤ 1。'
-              : `驗證失敗：${realization.verification.mismatches.length} 條 strand 終點不符、${realization.verification.illegalLayers.length} 個 layer 非法。`
+              ? t('layered.verify.ok')
+              : t('layered.verify.fail', {
+                  mismatches: realization.verification.mismatches.length,
+                  illegal: realization.verification.illegalLayers.length,
+                })
           }
         >
           <Chip
@@ -242,10 +243,10 @@ export function LayeredView({
         <Tooltip
           title={
             canonical.usedGrayPath
-              ? 'Gray-path 走法：Top-down 走 AND-bridge（低權重）；Bottom-up 走 OR-bridge（高權重）。只對 d ≥ 2 的 transposition 有差。'
+              ? t('layered.strategy.tooltip.gray')
               : walkAware && canonical.walkDecomposedCycles === canonical.totalCycles && canonical.totalCycles > 0
-                ? '本次所有 cycle 都被 Walk-aware 直接吃下，沒有 Gray-path 共軛展開，Top-down/Bottom-up 對結果無影響（已 disabled）。'
-                : '本次排列無 d ≥ 2 的 transposition，沒有 Gray-path 共軛展開，Top-down/Bottom-up 對結果無影響（已 disabled）。'
+                ? t('layered.strategy.tooltip.walkAll')
+                : t('layered.strategy.tooltip.none')
           }
         >
           <span>
@@ -265,8 +266,8 @@ export function LayeredView({
         <Tooltip
           title={
             reduced
-              ? '已開啟：相鄰（或可交換通過的）同 swap 對會自動相消，顯示最短化序列。'
-              : '關閉：顯示算法原始輸出（含可能的 involution 虛工，方便看出分解來源）。'
+              ? t('layered.reduced.tooltip.on')
+              : t('layered.reduced.tooltip.off')
           }
         >
           <ToggleButtonGroup
@@ -287,8 +288,8 @@ export function LayeredView({
           <Tooltip
             title={
               walkAware
-                ? '已開啟：若 cycle 成員恰好沿 Hamming-1 walk 排列，直接走相鄰邊，恰 m-1 層。條件式改寫，非搜尋。'
-                : '關閉：每個 cycle 一律用 anchor 展開（cycle[0] 為樞紐 fan out）。'
+                ? t('layered.walk.tooltip.on')
+                : t('layered.walk.tooltip.off')
             }
           >
             <ToggleButton
@@ -303,7 +304,10 @@ export function LayeredView({
           </Tooltip>
           {walkAware && canonical.walkDecomposedCycles > 0 && (
             <Tooltip
-              title={`偵測到 ${canonical.walkDecomposedCycles} / ${canonical.totalCycles} 個 cycle 是 Hamming walk，直接以相鄰邊分解。`}
+              title={t('layered.walk.chip.detected.tooltip', {
+                decomposed: canonical.walkDecomposedCycles,
+                total: canonical.totalCycles,
+              })}
             >
               <Chip
                 size="small"
@@ -314,7 +318,7 @@ export function LayeredView({
             </Tooltip>
           )}
           {walkAware && canonical.walkDecomposedCycles === 0 && canonical.totalCycles > 0 && (
-            <Tooltip title="此排列中沒有任一 cycle 是 Hamming walk；walk-aware 對此 case 沒有效益（屬於正常情況）。">
+            <Tooltip title={t('layered.walk.chip.none.tooltip')}>
               <Chip
                 size="small"
                 label={`walk: 0/${canonical.totalCycles} cycles`}
@@ -323,7 +327,7 @@ export function LayeredView({
             </Tooltip>
           )}
         </Stack>
-        <Tooltip title={reversedRows ? '目前：|11⟩→|00⟩（由上而下遞減）。點擊切回遞增。' : '目前：|00⟩→|11⟩（由上而下遞增）。點擊切換為遞減排列。'}>
+        <Tooltip title={reversedRows ? t('layered.reverse.tooltip.desc') : t('layered.reverse.tooltip.asc')}>
           <ToggleButton
             value="reverse"
             size="small"
@@ -337,18 +341,20 @@ export function LayeredView({
 
       {realization.unsupported.length > 0 && (
         <Alert severity="warning" sx={{ mb: 1.5 }}>
-          有 {realization.unsupported.length} 個 d ≥ 3 的 transposition 尚未支援分解
-          ：{realization.unsupported
-            .map(([a, b]) => `(${ket(a!)} ${ket(b!)})`)
-            .join(', ')}
+          {t('layered.unsupported', {
+            count: realization.unsupported.length,
+            list: realization.unsupported
+              .map(([a, b]) => `(${ket(a!)} ${ket(b!)})`)
+              .join(', '),
+          })}
         </Alert>
       )}
 
       {realization.layers.length === 0 ? (
         <Alert severity={realization.alreadyLegal ? 'success' : 'info'}>
           {realization.alreadyLegal
-            ? '目標已是 Adjacent Bipartite Graph 的子圖，不需要分層。'
-            : '目前沒有可分解的非平凡 cycle。'}
+            ? t('layered.empty.alreadyLegal')
+            : t('layered.empty.noCycle')}
         </Alert>
       ) : (
         <>
@@ -366,7 +372,7 @@ export function LayeredView({
               borderRadius: 1,
             }}
           >
-            <Tooltip title="回到開始">
+            <Tooltip title={tStr('layered.play.first')}>
               <span>
                 <IconButton
                   size="small"
@@ -377,7 +383,7 @@ export function LayeredView({
                 </IconButton>
               </span>
             </Tooltip>
-            <Tooltip title="上一步">
+            <Tooltip title={tStr('layered.play.prev')}>
               <span>
                 <IconButton
                   size="small"
@@ -388,7 +394,7 @@ export function LayeredView({
                 </IconButton>
               </span>
             </Tooltip>
-            <Tooltip title={playing ? '暫停' : '自動播放'}>
+            <Tooltip title={playing ? tStr('layered.play.pause') : tStr('layered.play.play')}>
               <span>
                 <IconButton
                   size="small"
@@ -402,7 +408,7 @@ export function LayeredView({
                 </IconButton>
               </span>
             </Tooltip>
-            <Tooltip title="下一步">
+            <Tooltip title={tStr('layered.play.next')}>
               <span>
                 <IconButton
                   size="small"
@@ -413,7 +419,7 @@ export function LayeredView({
                 </IconButton>
               </span>
             </Tooltip>
-            <Tooltip title="跳到結束">
+            <Tooltip title={tStr('layered.play.last')}>
               <span>
                 <IconButton
                   size="small"
@@ -620,7 +626,7 @@ export function LayeredView({
             sx={{ mt: 1, flexWrap: 'wrap', alignItems: 'center' }}
           >
             <Typography variant="caption" color="text.secondary">
-              Strand 圖例：
+              {t('layered.legend.label')}
             </Typography>
             {Array.from({ length: total }, (_, r) => r).map((r) => {
               const color = strandColor(r, total);
@@ -655,7 +661,7 @@ export function LayeredView({
                     }}
                   />
                   {ket(start)}
-                  {moved ? ` → ${ket(end)}` : ' (fixed)'}
+                  {moved ? ` → ${ket(end)}` : ` ${tStr('layered.legend.fixed')}`}
                 </Box>
               );
             })}
@@ -666,7 +672,7 @@ export function LayeredView({
             color="text.secondary"
             sx={{ display: 'block', mt: 1 }}
           >
-            分解（時序左→右）：
+            {t('layered.decomposition')}
             <Box
               component="span"
               sx={{

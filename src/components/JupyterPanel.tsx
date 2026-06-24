@@ -15,6 +15,7 @@ import 'prismjs/components/prism-python';
 import 'prismjs/themes/prism.css';
 
 import type { NotebookCell } from '../lib/qiskit';
+import { useI18n } from '../i18n';
 
 export type JupyterPanelProps = {
   cells: NotebookCell[];
@@ -30,6 +31,7 @@ export type JupyterPanelProps = {
  * `.ipynb` to upload into Google Colab / Jupyter (File → Upload notebook).
  */
 export function JupyterPanel({ cells, ipynb, filename }: JupyterPanelProps) {
+  const { t, tStr } = useI18n();
   const [toast, setToast] = useState<{ open: boolean; msg: string }>({
     open: false,
     msg: '',
@@ -47,9 +49,9 @@ export function JupyterPanel({ cells, ipynb, filename }: JupyterPanelProps) {
   const copyCell = async (source: string) => {
     try {
       await navigator.clipboard.writeText(source);
-      flash('已複製此 cell 到剪貼簿');
+      flash(tStr('export.toast.cellCopied'));
     } catch (e) {
-      flash(`複製失敗：${(e as Error).message}`);
+      flash(tStr('export.toast.copyFailed', { error: (e as Error).message }));
     }
   };
 
@@ -66,9 +68,9 @@ export function JupyterPanel({ cells, ipynb, filename }: JupyterPanelProps) {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      flash(`已下載 ${filename}.ipynb`);
+      flash(tStr('export.toast.ipynbDownloaded', { filename }));
     } catch (e) {
-      flash(`下載失敗：${(e as Error).message}`);
+      flash(tStr('export.toast.downloadFailed', { error: (e as Error).message }));
     }
   };
 
@@ -86,10 +88,10 @@ export function JupyterPanel({ cells, ipynb, filename }: JupyterPanelProps) {
           startIcon={<DownloadIcon />}
           onClick={downloadIpynb}
         >
-          下載 .ipynb
+          {t('export.download.ipynb.btn')}
         </Button>
         <Typography variant="caption" color="text.secondary">
-          上傳到 Google Colab：File → Upload notebook，依序執行各 cell。
+          {t('export.colabHint')}
         </Typography>
       </Stack>
 
@@ -137,7 +139,7 @@ export function JupyterPanel({ cells, ipynb, filename }: JupyterPanelProps) {
               <code dangerouslySetInnerHTML={{ __html: highlighted[i] }} />
             </Box>
             <Box sx={{ position: 'absolute', top: 4, right: 4 }}>
-              <Tooltip title="複製此 cell">
+              <Tooltip title={tStr('export.copyCell.tooltip')}>
                 <IconButton
                   size="small"
                   onClick={() => copyCell(cell.source)}

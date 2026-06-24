@@ -25,6 +25,7 @@ import { CodePanel } from './CodePanel';
 import { JupyterPanel } from './JupyterPanel';
 import { QiskitInstallBlock } from './QiskitInstallBlock';
 import { SvgViewport } from './SvgViewport';
+import { useI18n } from '../i18n';
 
 export type QuantumCircuitViewProps = {
   realization: LayeredRealization;
@@ -84,6 +85,7 @@ export function QuantumCircuitView({
   step,
 }: QuantumCircuitViewProps) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const { t, lang } = useI18n();
   const [mode, setMode] = useState<Mode>('mixed');
   // The orange band marks the active layer (current playback position). It is
   // useful on-screen but gets baked into the "Copy as PNG" export, so let the
@@ -164,57 +166,10 @@ export function QuantumCircuitView({
       >
         <Box sx={{ flexGrow: 1, minWidth: 0 }}>
           <Typography variant="overline" color="text.secondary">
-            Quantum Circuit — Layer → Multi-controlled X
+            {t('circuit.title')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            每一個 Hamming d = 1 的 layer (a&nbsp;b) 對應一個多控 X gate：
-            差異位元 = target（⊕），其餘 n−1 個位元為控制端 —
-            <Box
-              component="span"
-              sx={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 0.5,
-                mx: 0.5,
-              }}
-            >
-              <Box
-                component="span"
-                sx={{
-                  display: 'inline-block',
-                  width: 10,
-                  height: 10,
-                  borderRadius: '50%',
-                  bgcolor: COLOR_GATE,
-                }}
-              />
-              =1
-            </Box>
-            、
-            <Box
-              component="span"
-              sx={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 0.5,
-                mx: 0.5,
-              }}
-            >
-              <Box
-                component="span"
-                sx={{
-                  display: 'inline-block',
-                  width: 10,
-                  height: 10,
-                  borderRadius: '50%',
-                  bgcolor: '#fff',
-                  border: `1.5px solid ${COLOR_GATE}`,
-                }}
-              />
-              =0
-            </Box>
-            。線路採用 MSQ 配置：最下方為 |x₀⟩，最上方為 |x
-            {n - 1}⟩；時間軸由左至右。
+            {t('circuit.subtitle', { n, gateColor: COLOR_GATE })}
           </Typography>
         </Box>
       </Stack>
@@ -242,13 +197,13 @@ export function QuantumCircuitView({
       >
         <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
           <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
-            控制端
+            {t('circuit.controlLabel')}
           </Typography>
           <Tooltip
             title={
               mode === 'mixed'
-                ? '保留 mixed control：bit=0 顯示為空心白控制。'
-                : '把每個空心白控制透過 X-共軛展開為 X · positive control · X，方便對應只支援 positive control 的硬體。'
+                ? t('circuit.mode.tooltip.mixed')
+                : t('circuit.mode.tooltip.positive')
             }
           >
             <ToggleButtonGroup
@@ -258,8 +213,8 @@ export function QuantumCircuitView({
               onChange={(_, v: Mode | null) => v && setMode(v)}
               color="primary"
             >
-              <ToggleButton value="mixed">Mixed control</ToggleButton>
-              <ToggleButton value="positive">Positive-only</ToggleButton>
+              <ToggleButton value="mixed">{t('circuit.mode.mixed')}</ToggleButton>
+              <ToggleButton value="positive">{t('circuit.mode.positive')}</ToggleButton>
             </ToggleButtonGroup>
           </Tooltip>
         </Stack>
@@ -267,8 +222,8 @@ export function QuantumCircuitView({
         <Tooltip
           title={
             tab !== 'diagram'
-              ? '此開關僅作用於電路圖分頁。'
-              : '顯示對齊目前播放位置的橘色高亮區域。關閉後「複製為 PNG」即為標準量子電路圖。'
+              ? t('circuit.playhead.tooltip.off')
+              : t('circuit.playhead.tooltip.on')
           }
         >
           <FormControlLabel
@@ -283,7 +238,7 @@ export function QuantumCircuitView({
             }
             label={
               <Typography variant="caption" color="text.secondary">
-                播放位置高亮
+                {t('circuit.playhead.label')}
               </Typography>
             }
           />
@@ -296,15 +251,15 @@ export function QuantumCircuitView({
         onChange={(_, v: 'diagram' | 'qiskit' | 'jupyter') => setTab(v)}
         sx={{ mb: 1.5, minHeight: 36 }}
       >
-        <Tab value="diagram" label="電路圖" sx={{ minHeight: 36, py: 0 }} />
+        <Tab value="diagram" label={t('circuit.tab.diagram')} sx={{ minHeight: 36, py: 0 }} />
         <Tab
           value="qiskit"
-          label="Qiskit 程式碼"
+          label={t('circuit.tab.qiskit')}
           sx={{ minHeight: 36, py: 0 }}
         />
         <Tab
           value="jupyter"
-          label="Jupyter / Colab"
+          label={t('circuit.tab.jupyter')}
           sx={{ minHeight: 36, py: 0 }}
         />
       </Tabs>
@@ -325,9 +280,10 @@ export function QuantumCircuitView({
             n,
             mode,
             realization.strategy,
+            lang,
           )}
           ipynb={buildIpynb(
-            buildQiskitNotebook(qiskitGates, n, mode, realization.strategy),
+            buildQiskitNotebook(qiskitGates, n, mode, realization.strategy, lang),
           )}
           filename={`qiskit-circuit-n${n}-${realization.strategy}-${mode}`}
         />
@@ -556,30 +512,7 @@ export function QuantumCircuitView({
         color="text.secondary"
         sx={{ display: 'block', mt: 1 }}
       >
-        共 {gates.length} 個 gate
-        {mode === 'mixed' ? (
-          <>
-            ，與上方 Wiring Diagram 的 layer 一一對應；
-            gate Lk 作用 = 翻轉 target qubit 當且僅當每個控制端條件成立
-            （實心黑要求 1、空心白要求 0）。
-          </>
-        ) : (
-          <>
-            ；以 X-共軛恆等式
-            <Box
-              component="span"
-              sx={{
-                ml: 0.5,
-                mr: 0.5,
-                fontFamily:
-                  'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-              }}
-            >
-              C⁰_q(U) = X_q · C¹_q(U) · X_q
-            </Box>
-            把全部 {negCount} 個空心白控制展開為「X · positive control · X」。展開後所有 control 皆為實心黑，可直接對應只支援 positive control 的硬體。
-          </>
-        )}
+        {t('circuit.footer', { count: gates.length, mode, negCount })}
       </Typography>
     </Paper>
   );

@@ -30,6 +30,7 @@ import {
 import { CodePanel } from './CodePanel';
 import { JupyterPanel } from './JupyterPanel';
 import { QiskitInstallBlock } from './QiskitInstallBlock';
+import { useI18n } from '../i18n';
 
 export type QiskitPackageViewProps = {
   realization: LayeredRealization;
@@ -71,6 +72,7 @@ export function QiskitPackageView({
   n,
   reduced = false,
 }: QiskitPackageViewProps) {
+  const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
 
@@ -114,11 +116,11 @@ export function QiskitPackageView({
         <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ px: 2 }}>
           <Stack spacing={0.25}>
             <Typography variant="overline" color="text.secondary">
-              Qiskit 函式版 — 任意排列 α → 量子電路
+              {t('qiskit.title')}
             </Typography>
             {!expanded && (
               <Typography variant="caption" color="text.secondary">
-                展開以產生「任意排列 α → 電路」的通用 Python 函式（請按下產生程式碼）
+                {t('qiskit.collapsedHint')}
               </Typography>
             )}
           </Stack>
@@ -132,14 +134,7 @@ export function QiskitPackageView({
                 color="text.secondary"
                 sx={{ mb: 1.5 }}
               >
-                一份自給自足的通用 Python 函式：傳入任意排列 α（以 cycle
-                表示），內部自行完成「α → 合法 (Hamming = 1) 層 → 多控 X」的完整
-                分解 — 不必逐 gate 手寫。按下按鈕會以目前的 α 與設定（strategy
-                <Box component="span" sx={{ mx: 0.5, fontFamily: 'monospace' }}>
-                  {strategy}
-                </Box>
-                、walk_aware={String(walkAware)}、reduce={String(reduced)}）產生範例
-                呼叫；改 alpha_cycles 即可重算其他排列。
+                {t('qiskit.intro', { strategy, walkAware, reduced })}
               </Typography>
 
               {/* The actual current α, so the user need not scroll up to check. */}
@@ -153,7 +148,7 @@ export function QiskitPackageView({
                 }}
               >
                 <Typography variant="caption" color="text.secondary">
-                  目前 α（cycle 表示）
+                  {t('qiskit.alphaLabel')}
                 </Typography>
                 <Box
                   sx={{
@@ -180,14 +175,14 @@ export function QiskitPackageView({
                   startIcon={snapshot ? <RefreshIcon /> : <CodeIcon />}
                   onClick={generate}
                 >
-                  {snapshot ? '重新產生程式碼' : '產生程式碼'}
+                  {snapshot ? t('qiskit.btn.regenerate') : t('qiskit.btn.generate')}
                 </Button>
                 {stale && (
                   <Chip
                     size="small"
                     color="warning"
                     variant="outlined"
-                    label="α 已變更，下方內容已過期"
+                    label={t('qiskit.stale')}
                   />
                 )}
               </Stack>
@@ -203,6 +198,7 @@ export function QiskitPackageView({
 
 /** The heavy part — only mounted after the user presses 產生程式碼. */
 function PackageBody({ snapshot }: { snapshot: Snapshot }) {
+  const { t, lang } = useI18n();
   const [tab, setTab] = useState<'script' | 'jupyter'>('script');
   const { cycles, n, strategy, walkAware, reduced } = snapshot;
 
@@ -211,8 +207,8 @@ function PackageBody({ snapshot }: { snapshot: Snapshot }) {
     [cycles, n, strategy, walkAware, reduced],
   );
   const cells = useMemo(
-    () => buildQiskitPackageNotebook(cycles, n, strategy, walkAware, reduced),
-    [cycles, n, strategy, walkAware, reduced],
+    () => buildQiskitPackageNotebook(cycles, n, strategy, walkAware, reduced, lang),
+    [cycles, n, strategy, walkAware, reduced, lang],
   );
   const ipynb = useMemo(() => buildIpynb(cells), [cells]);
 
@@ -227,10 +223,10 @@ function PackageBody({ snapshot }: { snapshot: Snapshot }) {
         onChange={(_, v: 'script' | 'jupyter') => setTab(v)}
         sx={{ mb: 1.5, minHeight: 36 }}
       >
-        <Tab value="script" label="Python 模組" sx={{ minHeight: 36, py: 0 }} />
+        <Tab value="script" label={t('qiskit.tab.module')} sx={{ minHeight: 36, py: 0 }} />
         <Tab
           value="jupyter"
-          label="Jupyter / Colab"
+          label={t('qiskit.tab.jupyter')}
           sx={{ minHeight: 36, py: 0 }}
         />
       </Tabs>
@@ -247,9 +243,7 @@ function PackageBody({ snapshot }: { snapshot: Snapshot }) {
         color="text.secondary"
         sx={{ display: 'block', mt: 1 }}
       >
-        函式內含 positive 參數：build_circuit(..., positive=True)
-        會把空心白控制以 X-共軛展開為 positive-only 控制，方便對應只支援 positive
-        control 的硬體。
+        {t('qiskit.footer')}
       </Typography>
     </>
   );

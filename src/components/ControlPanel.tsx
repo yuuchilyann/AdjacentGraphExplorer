@@ -8,6 +8,7 @@ import {
   Alert,
 } from '@mui/material';
 import { N_MAX, N_MIN, N_SOFT_WARN } from '../types';
+import { useI18n } from '../i18n';
 
 export type ControlPanelProps = {
   n: number;
@@ -20,6 +21,7 @@ const clamp = (v: number): number =>
 export function ControlPanel({ n, onChange }: ControlPanelProps) {
   const stateCount = 1 << n;
   const edgeCount = stateCount * (n + 1);
+  const { t, tStr } = useI18n();
 
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
@@ -29,7 +31,7 @@ export function ControlPanel({ n, onChange }: ControlPanelProps) {
         sx={{ alignItems: { xs: 'stretch', md: 'center' } }}
       >
         <TextField
-          label="n (量子位元數)"
+          label={t('control.n.label')}
           type="number"
           size="small"
           value={n}
@@ -41,12 +43,12 @@ export function ControlPanel({ n, onChange }: ControlPanelProps) {
             if (Number.isFinite(v)) onChange(clamp(v));
           }}
           sx={{ width: 180 }}
-          helperText={`允許範圍 ${N_MIN}–${N_MAX}`}
+          helperText={tStr('control.n.helper')}
         />
 
         <Box sx={{ flexGrow: 1, minWidth: 200 }}>
           <Typography variant="caption" color="text.secondary">
-            n = {n} ⇒ 2ⁿ = {stateCount} 個基底態、{edgeCount} 條合法邊
+            {t('control.caption', { n, stateCount, edgeCount })}
           </Typography>
           <Slider
             value={n}
@@ -64,7 +66,7 @@ export function ControlPanel({ n, onChange }: ControlPanelProps) {
 
       {n > N_SOFT_WARN && (
         <Alert severity="warning" sx={{ mt: 2 }}>
-          n = {n} 會產生 {edgeCount} 條邊，bipartite 檢視會非常擁擠，渲染也可能變慢。
+          {t('control.warn', { n, edgeCount })}
         </Alert>
       )}
     </Paper>

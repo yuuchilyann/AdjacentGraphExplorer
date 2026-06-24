@@ -15,6 +15,7 @@ import PersonIcon from '@mui/icons-material/Person';
 
 import { Math } from './Math';
 import type { LayeredRealization } from '../lib/layered';
+import { useI18n } from '../i18n';
 
 export type ElementaryRowMatrixPanelProps = {
   realization: LayeredRealization;
@@ -180,6 +181,7 @@ export function ElementaryRowMatrixPanel({
   n,
   step,
 }: ElementaryRowMatrixPanelProps) {
+  const { t } = useI18n();
   const [detail, setDetail] = useState<Detail>('simplified');
 
   if (n <= 0 || realization.layers.length === 0) return null;
@@ -212,8 +214,8 @@ export function ElementaryRowMatrixPanel({
         <Tooltip
           title={
             isFull
-              ? '完整模式（學者）：列出每一欄與完整矩陣，便於逐項驗證。'
-              : '簡化模式（一般使用者）：用 ⋯ 省略未變動的部分，只突顯被互換的兩列。'
+              ? t('matrix.detail.tooltip.full')
+              : t('matrix.detail.tooltip.simplified')
           }
         >
           <ToggleButtonGroup
@@ -225,22 +227,18 @@ export function ElementaryRowMatrixPanel({
           >
             <ToggleButton value="simplified">
               <PersonIcon sx={{ mr: 0.5, fontSize: 16 }} />
-              簡化
+              {t('matrix.detail.simplified')}
             </ToggleButton>
             <ToggleButton value="full">
               <SchoolIcon sx={{ mr: 0.5, fontSize: 16 }} />
-              完整
+              {t('matrix.detail.full')}
             </ToggleButton>
           </ToggleButtonGroup>
         </Tooltip>
       </Stack>
 
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-        每一個 legal layer 的 transposition{' '}
-        <Math tex={`\\alpha = (\\,|i\\rangle\\ \\ |j\\rangle\\,)`} /> 對應一個{' '}
-        <strong>elementary row matrix</strong>{' '}
-        <Math tex="R_{(i,\,j)}" />，也就是把 <Math tex={`${N} \\times ${N}`} />{' '}
-        單位矩陣的第 <Math tex="i" /> 列與第 <Math tex="j" /> 列互換：
+        {t('matrix.intro', { N })}
       </Typography>
 
       <Box sx={{ overflowX: 'auto' }}>
@@ -255,25 +253,17 @@ export function ElementaryRowMatrixPanel({
         color="text.secondary"
         sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5, mt: 0.5 }}
       >
-        被互換的兩個基底態，位元配色對應量子電路：
-        <Box component="span" sx={{ color: COLOR_CONTROL, fontWeight: 700 }}>
-          ■ 控制位元（|i⟩、|j⟩ 相同）
-        </Box>
-        <Box component="span" sx={{ color: COLOR_TARGET, fontWeight: 700 }}>
-          ■ 目標位元（唯一相異 → 被 X 翻轉）
-        </Box>
+        {t('matrix.legend', { controlColor: COLOR_CONTROL, targetColor: COLOR_TARGET })}
       </Typography>
 
       {isFull && !canFullTwoLine && (
         <Alert severity="info" sx={{ mt: 1 }}>
-          n = {n} ⇒ 2ⁿ = {N}，欄數過多無法逐欄完整展開（雙行表示法的完整展開僅在 n ≤ 6
-          時提供）。以下改以 landmark 形式顯示。
+          {t('matrix.alert.tooManyColumns', { n, N })}
         </Alert>
       )}
       {isFull && canFullTwoLine && !canShowMatrix && (
         <Alert severity="info" sx={{ mt: 1 }}>
-          n = {n} ⇒ {N} × {N} 矩陣過大不適合完整顯示（僅在 n ≤ 4 時繪製完整矩陣）。
-          雙行表示法仍逐欄完整展開。
+          {t('matrix.alert.matrixTooBig', { n, N })}
         </Alert>
       )}
 
@@ -326,8 +316,7 @@ export function ElementaryRowMatrixPanel({
         color="text.secondary"
         sx={{ display: 'block', mt: 1 }}
       >
-        共 {realization.layers.length} 個 elementary row matrix，與上方量子電路的 layer
-        一一對應；整個排列的矩陣為這些 <Math tex="R_{(i,\,j)}" /> 依時序的乘積。
+        {t('matrix.footer', { count: realization.layers.length })}
       </Typography>
     </Paper>
   );

@@ -18,6 +18,7 @@
  */
 
 import type { Strategy } from './layered';
+import type { Lang } from '../i18n/types';
 
 export type QiskitMode = 'mixed' | 'positive';
 
@@ -138,18 +139,37 @@ const VISUALIZE_FOOTER = [
 /** One notebook code cell. */
 export type NotebookCell = { source: string };
 
+/**
+ * Localized comments baked into downloaded notebooks (.ipynb). Code stays the
+ * same; only the human-readable hints follow the active UI language.
+ */
+const NOTEBOOK_COMMENTS: Record<Lang, { restart: string[]; draw: string }> = {
+  'zh-Hant': {
+    restart: [
+      '# 若下方 import qiskit 出錯（Colab 常見 numpy 版本衝突），',
+      '# 請先 Runtime → Restart session，再從這個 cell 重新執行。',
+    ],
+    draw: '# 在 notebook 中，cell 最後一行為 qc.draw("mpl") 即會 inline 顯示圖形電路。',
+  },
+  en: {
+    restart: [
+      '# If the qiskit import below fails (a common numpy version clash on Colab),',
+      '# run Runtime → Restart session first, then re-run from this cell.',
+    ],
+    draw: '# In a notebook, making qc.draw("mpl") the last line renders the circuit inline.',
+  },
+};
+
 /** `!pip` install command for the "+ visualization" package set. */
-const NOTEBOOK_INSTALL = [
-  '!pip install qiskit matplotlib pylatexenc',
-  '# 若下方 import qiskit 出錯（Colab 常見 numpy 版本衝突），',
-  '# 請先 Runtime → Restart session，再從這個 cell 重新執行。',
-].join('\n');
+const notebookInstall = (lang: Lang): string =>
+  [
+    '!pip install qiskit matplotlib pylatexenc',
+    ...NOTEBOOK_COMMENTS[lang].restart,
+  ].join('\n');
 
 /** Final notebook cell: render the circuit inline as a matplotlib figure. */
-const DRAW_CELL = [
-  '# 在 notebook 中，cell 最後一行為 qc.draw("mpl") 即會 inline 顯示圖形電路。',
-  "qc.draw('mpl')",
-].join('\n');
+const drawCell = (lang: Lang): string =>
+  [NOTEBOOK_COMMENTS[lang].draw, "qc.draw('mpl')"].join('\n');
 
 /**
  * Standalone Python script (.py tab): the unrolled circuit source plus a
@@ -175,11 +195,12 @@ export function buildQiskitNotebook(
   n: number,
   mode: QiskitMode,
   strategy: Strategy,
+  lang: Lang,
 ): NotebookCell[] {
   return [
-    { source: NOTEBOOK_INSTALL },
+    { source: notebookInstall(lang) },
     { source: buildCircuitSource(gates, n, mode, strategy) },
-    { source: DRAW_CELL },
+    { source: drawCell(lang) },
   ];
 }
 
@@ -483,15 +504,16 @@ export function buildQiskitPackageNotebook(
   strategy: Strategy,
   walkAware: boolean,
   reduced: boolean,
+  lang: Lang,
 ): NotebookCell[] {
   return [
-    { source: NOTEBOOK_INSTALL },
+    { source: notebookInstall(lang) },
     { source: buildFunctionModule() },
     {
       source:
         buildFunctionExample(cycles, n, strategy, walkAware, reduced) +
         '\n\n' +
-        DRAW_CELL,
+        drawCell(lang),
     },
   ];
 }

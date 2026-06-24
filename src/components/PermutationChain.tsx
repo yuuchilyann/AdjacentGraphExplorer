@@ -35,6 +35,7 @@ import {
 } from '../lib/permutation';
 import { LayeredView } from './LayeredView';
 import { SvgViewport } from './SvgViewport';
+import { useI18n } from '../i18n';
 
 export type PermutationChainProps = {
   n: number;
@@ -69,6 +70,7 @@ function composeMappings(mappings: Mapping[], n: number): Mapping | null {
 }
 
 export function PermutationChain({ n }: PermutationChainProps) {
+  const { t, tStr } = useI18n();
   const [stages, setStages] = useState(2); // number of α_k transitions
   const [mappings, setMappings] = useState<Map<number, number>[]>(() => [
     new Map(),
@@ -449,10 +451,10 @@ export function PermutationChain({ n }: PermutationChainProps) {
 
   const selfLoopTooltip =
     totalSelfLoopCandidates > 0
-      ? `把所有段剩餘共 ${totalSelfLoopCandidates} 個未連的來源補成 self-loop（|x⟩→|x⟩，固定點），不動已連的邊`
+      ? tStr('chain.selfLoop.tooltip.fill', { count: totalSelfLoopCandidates })
       : composite !== null
-        ? '所有段皆完整，無需補 self-loop'
-        : '剩餘未連來源的自身目標已被佔用，無法自動補 self-loop（請手動處理或清除衝突）';
+        ? tStr('chain.selfLoop.tooltip.complete')
+        : tStr('chain.selfLoop.tooltip.blocked');
 
   // Pre-compute committed edges per stage.
   const committedPerStage = useMemo(() => {
@@ -489,12 +491,10 @@ export function PermutationChain({ n }: PermutationChainProps) {
       >
         <Box sx={{ flexGrow: 1, minWidth: 0 }}>
           <Typography variant="overline" color="text.secondary">
-            Permutation Chain — 多段連連看
+            {t('chain.title')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            |X<sub>1</sub>⟩ → |X<sub>2</sub>⟩ → ⋯ → |X<sub>L</sub>⟩，每段 α
-            <sub>k</sub> 獨立連線；合成 α<sub>total</sub> = α<sub>L−1</sub> ∘ ⋯ ∘
-            α<sub>1</sub> 顯示於下方。
+            {t('chain.subtitle')}
           </Typography>
         </Box>
         <Chip
@@ -503,8 +503,11 @@ export function PermutationChain({ n }: PermutationChainProps) {
           color={allComplete ? 'success' : 'default'}
           label={
             allComplete
-              ? `全部完成 (${stages}/${stages})`
-              : `進度 ${completePerStage.filter(Boolean).length}/${stages}`
+              ? t('chain.progress.all', { stages })
+              : t('chain.progress.partial', {
+                  done: completePerStage.filter(Boolean).length,
+                  stages,
+                })
           }
           sx={{ flexShrink: 0 }}
         />
@@ -537,9 +540,9 @@ export function PermutationChain({ n }: PermutationChainProps) {
             color="text.secondary"
             sx={{ mr: 0.5 }}
           >
-            層數
+            {t('chain.stageCount')}
           </Typography>
-          <Tooltip title="移除最後一層（L − 1）">
+          <Tooltip title={tStr('chain.removeStage.tooltip')}>
             <span>
               <IconButton
                 size="small"
@@ -562,7 +565,7 @@ export function PermutationChain({ n }: PermutationChainProps) {
           >
             L = {cols}
           </Typography>
-          <Tooltip title="新增一層（L + 1）">
+          <Tooltip title={tStr('chain.addStage.tooltip')}>
             <span>
               <IconButton
                 size="small"
@@ -580,16 +583,16 @@ export function PermutationChain({ n }: PermutationChainProps) {
             <Button
               startIcon={<AutoFixHighIcon />}
               onClick={randomizeAllLegal}
-              title="每段都隨機產生合法 (d ≤ 1) 排列"
+              title={tStr('chain.random.legal.tooltip')}
             >
-              隨機合法
+              {t('chain.random.legal')}
             </Button>
             <Button
               startIcon={<ShuffleIcon />}
               onClick={randomizeAllAny}
-              title="每段都隨機任意排列"
+              title={tStr('chain.random.any.tooltip')}
             >
-              隨機任意
+              {t('chain.random.any')}
             </Button>
           </ButtonGroup>
           <Button
@@ -598,7 +601,7 @@ export function PermutationChain({ n }: PermutationChainProps) {
             onClick={resetAll}
             disabled={mappings.every((m) => m.size === 0) && selected === null}
           >
-            清除
+            {t('chain.reset')}
           </Button>
           <Tooltip title={selfLoopTooltip}>
             {/* span keeps the tooltip working while the button is disabled */}
@@ -610,7 +613,7 @@ export function PermutationChain({ n }: PermutationChainProps) {
                 onClick={fillSelfLoopsAll}
                 disabled={totalSelfLoopCandidates === 0}
               >
-                補滿 self-loop
+                {t('chain.fillSelfLoop')}
               </Button>
             </span>
           </Tooltip>
@@ -619,10 +622,10 @@ export function PermutationChain({ n }: PermutationChainProps) {
         <Tooltip
           title={
             composite === null
-              ? '需所有段完成才能依路徑排序（避免欄內列重複/缺漏）'
+              ? tStr('chain.pathAware.tooltip.disabled')
               : pathAware
-                ? '已開啟：第 c ≥ 1 欄的列順序依「α_{c-1} 的輸出」排，strand 變直線；代價是欄內 ket 不再可預測位置'
-                : '關閉：每欄都用 0..2ⁿ-1 預設順序，欄內 ket 位置可預測，但 strand 會交叉'
+                ? tStr('chain.pathAware.tooltip.on')
+                : tStr('chain.pathAware.tooltip.off')
           }
         >
           <span>
@@ -634,7 +637,7 @@ export function PermutationChain({ n }: PermutationChainProps) {
               disabled={composite === null}
               color="success"
             >
-              依路徑排序
+              {t('chain.pathAware')}
             </ToggleButton>
           </span>
         </Tooltip>
@@ -861,10 +864,15 @@ export function PermutationChain({ n }: PermutationChainProps) {
                 color="text.secondary"
                 sx={{ flexGrow: 1 }}
               >
-                α{k + 1} cycle 表示（{completePerStage[k] ? '完整' : `${mappings[k]!.size}/${total}`}）
+                {t('chain.stage.cycleLabel', {
+                  k: k + 1,
+                  status: completePerStage[k]
+                    ? tStr('chain.stage.status.complete')
+                    : `${mappings[k]!.size}/${total}`,
+                })}
               </Typography>
               <Tooltip
-                title={`直通連接 α${k + 1}（α(x) = x，將同列直接連起來）`}
+                title={tStr('chain.stage.identity.tooltip', { k: k + 1 })}
               >
                 <span>
                   <IconButton
@@ -882,7 +890,7 @@ export function PermutationChain({ n }: PermutationChainProps) {
                   </IconButton>
                 </span>
               </Tooltip>
-              <Tooltip title={`隨機合法重設 α${k + 1}（d ≤ 1，不動其他段）`}>
+              <Tooltip title={tStr('chain.stage.randomLegal.tooltip', { k: k + 1 })}>
                 <IconButton
                   size="small"
                   onClick={() => randomizeStage(k)}
@@ -891,7 +899,7 @@ export function PermutationChain({ n }: PermutationChainProps) {
                   <AutoFixHighIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
-              <Tooltip title={`隨機任意排列 α${k + 1}（不限 d，不動其他段）`}>
+              <Tooltip title={tStr('chain.stage.randomAny.tooltip', { k: k + 1 })}>
                 <IconButton
                   size="small"
                   onClick={() => randomizeStageAny(k)}
@@ -900,7 +908,7 @@ export function PermutationChain({ n }: PermutationChainProps) {
                   <ShuffleIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
-              <Tooltip title={`清除 α${k + 1}`}>
+              <Tooltip title={tStr('chain.stage.clear.tooltip', { k: k + 1 })}>
                 <span>
                   <IconButton
                     size="small"
@@ -927,8 +935,10 @@ export function PermutationChain({ n }: PermutationChainProps) {
 
         {selected !== null && (
           <Typography variant="caption" color="text.secondary">
-            來源 = (α{selected.col + 1} 的) {ketLabel(selected.idx)}；藍色 = 合法目標 (d ≤
-            1)、橙色 = 遠端目標 (d ≥ 2，會自動進入分層)、紅色 = 已被佔用 (會 snap)。
+            {t('chain.selectedHint', {
+              col: selected.col + 1,
+              ket: ketLabel(selected.idx),
+            })}
           </Typography>
         )}
 
@@ -936,7 +946,7 @@ export function PermutationChain({ n }: PermutationChainProps) {
         {composite && (
           <Box sx={{ mt: 1 }}>
             <Typography variant="caption" color="text.secondary">
-              合成 α<sub>total</sub> = α{stages} ∘ ⋯ ∘ α1（cycle 表示）
+              {t('chain.composite.cycleLabel', { stages })}
             </Typography>
             <Typography
               variant="body2"
@@ -955,8 +965,8 @@ export function PermutationChain({ n }: PermutationChainProps) {
               }}
             >
               {compositeMaxD <= 1
-                ? `✓ 合成 G_α ⊆ Adjacent Bipartite Graph（max d = ${compositeMaxD}）`
-                : `△ 合成含 d ≥ 2 邊（max d = ${compositeMaxD}），需要分層實現 — 詳見下方 Layered Realization`}
+                ? t('chain.composite.result.legal', { maxD: compositeMaxD })
+                : t('chain.composite.result.illegal', { maxD: compositeMaxD })}
             </Typography>
           </Box>
         )}
@@ -976,7 +986,7 @@ export function PermutationChain({ n }: PermutationChainProps) {
             >
               Layered Realization
             </Typography>
-            <Tooltip title="展開時，依序顯示 α₁..α_{L-1} 各自的分層實現，方便對照合成版的層數差異。">
+            <Tooltip title={tStr('chain.perStage.tooltip')}>
               <FormControlLabel
                 sx={{ m: 0 }}
                 control={
@@ -987,7 +997,7 @@ export function PermutationChain({ n }: PermutationChainProps) {
                   />
                 }
                 label={
-                  <Typography variant="caption">顯示各段分解</Typography>
+                  <Typography variant="caption">{t('chain.perStage.label')}</Typography>
                 }
               />
             </Tooltip>
@@ -1002,7 +1012,7 @@ export function PermutationChain({ n }: PermutationChainProps) {
                     color="text.secondary"
                     sx={{ display: 'block', mb: 0.5 }}
                   >
-                    α<sub>{k + 1}</sub> 的 Layered Realization
+                    {t('chain.perStage.title', { k: k + 1 })}
                   </Typography>
                   {/* showLearningPanel={false} — 教學面板只在合成版顯示一次，
                       避免每段重複同一份定理參考。 */}
@@ -1017,7 +1027,7 @@ export function PermutationChain({ n }: PermutationChainProps) {
             color="text.secondary"
             sx={{ display: 'block', mb: 0.5 }}
           >
-            合成 α<sub>total</sub> 的 Layered Realization
+            {t('chain.composite.layeredTitle')}
           </Typography>
           <LayeredView mapping={composite} n={n} />
         </Box>

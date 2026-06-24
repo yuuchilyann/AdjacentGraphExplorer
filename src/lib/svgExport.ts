@@ -79,7 +79,8 @@ export async function copySvgAsPng(
   scale = 2,
 ): Promise<void> {
   if (typeof ClipboardItem === 'undefined' || !navigator.clipboard?.write) {
-    throw new Error('此瀏覽器不支援圖片剪貼簿 API');
+    // Stable code (not user-facing text) so callers can localize the message.
+    throw new Error('NO_CLIPBOARD_IMAGE_API');
   }
   const blob = await svgToPngBlob(svg, scale);
   await navigator.clipboard.write([

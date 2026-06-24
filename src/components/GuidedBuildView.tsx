@@ -26,6 +26,7 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
 import { PermutationBuilder } from './PermutationBuilder';
 import { SvgViewport } from './SvgViewport';
+import { useI18n } from '../i18n';
 import {
   formatKet,
   hammingDistance,
@@ -69,6 +70,7 @@ function strandColor(startIdx: number, total: number): string {
 }
 
 export function GuidedBuildView({ n }: GuidedBuildViewProps) {
+  const { t, tStr } = useI18n();
   const [target, setTarget] = useState<Mapping>(new Map());
   const [editedLayers, setEditedLayers] = useState<LayerStep[]>([]);
   const [strategy, setStrategy] = useState<Strategy>('above');
@@ -324,7 +326,11 @@ export function GuidedBuildView({ n }: GuidedBuildViewProps) {
       if (!isLegalLayer(V, row)) {
         const d = hammingDistance(V, row);
         flashSvgErr(
-          `要在尾端追加 (${formatKet(V, n)} ${formatKet(row, n)}) 把 strand 帶到 target ${formatKet(row, n)}，但 Hamming distance = ${d}（必須 d = 1）`,
+          tStr('guided.err.appendTarget', {
+            from: formatKet(V, n),
+            to: formatKet(row, n),
+            d,
+          }),
         );
         return;
       }
@@ -340,7 +346,11 @@ export function GuidedBuildView({ n }: GuidedBuildViewProps) {
       if (!isLegalLayer(A, B)) {
         const d = hammingDistance(A, B);
         flashSvgErr(
-          `要在最前面插入 (${formatKet(A, n)} ${formatKet(B, n)})，但 Hamming distance = ${d}（必須 d = 1）`,
+          tStr('guided.err.insertFront', {
+            a: formatKet(A, n),
+            b: formatKet(B, n),
+            d,
+          }),
         );
         return;
       }
@@ -384,7 +394,11 @@ export function GuidedBuildView({ n }: GuidedBuildViewProps) {
       }
       const d = hammingDistance(V, row);
       flashSvgErr(
-        `要把 strand 從 ${formatKet(V, n)} 帶到 ${formatKet(row, n)}，需要 layer (${formatKet(V, n)} ${formatKet(row, n)}) 但 Hamming distance = ${d}，非 legal 2-cycle`,
+        tStr('guided.err.editLayer', {
+          from: formatKet(V, n),
+          to: formatKet(row, n),
+          d,
+        }),
       );
       return;
     }
@@ -417,20 +431,22 @@ export function GuidedBuildView({ n }: GuidedBuildViewProps) {
         >
           <Box sx={{ flexGrow: 1, minWidth: 0 }}>
             <Typography variant="overline" color="text.secondary">
-              Guided Build — 引導構築
+              {t('guided.title')}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              在上方連連看完成完整的 bijection（目標排列 α）後，系統自動載入 Top-Down 分解作為起點；
-              你可以拖曳重排、插入或刪除任一層 legal 2-cycle，卡住時按「Auto-finish」讓系統補完。
+              {t('guided.subtitle')}
             </Typography>
           </Box>
           <Tooltip
             title={
               !targetReady
-                ? `尚未完成 bijection（${targetProgress}）。完成後才會啟動編輯區。`
+                ? tStr('guided.status.tooltip.notReady', { progress: targetProgress })
                 : matches
-                  ? '目前的 layer 序列已實現目標。'
-                  : `還有 ${mismatchCount} 條 strand 終點不符；按 Auto-finish 可補上 ${autoRemainingLayers.length} 層。`
+                  ? tStr('guided.status.tooltip.matches')
+                  : tStr('guided.status.tooltip.off', {
+                      mismatch: mismatchCount,
+                      auto: autoRemainingLayers.length,
+                    })
             }
           >
             <Chip
@@ -466,7 +482,7 @@ export function GuidedBuildView({ n }: GuidedBuildViewProps) {
             alignItems: 'center',
           }}
         >
-          <Tooltip title="Top-down 走 AND-bridge、Bottom-up 走 OR-bridge。影響預載與 Auto-finish 的展開選擇。">
+          <Tooltip title={tStr('guided.strategy.tooltip')}>
             <ToggleButtonGroup
               value={strategy}
               exclusive
@@ -481,10 +497,13 @@ export function GuidedBuildView({ n }: GuidedBuildViewProps) {
           <Tooltip
             title={
               !targetReady
-                ? `請先完成上方連連看（目前 ${targetProgress}）。`
+                ? tStr('guided.autoFinish.tooltip.notReady', { progress: targetProgress })
                 : matches
-                  ? '已實現目標，沒有需要補的層。'
-                  : `把剩餘排列 σ 用 ${strategy === 'above' ? 'Top-down' : 'Bottom-up'} 展開後追加到尾端（${autoRemainingLayers.length} 層）。`
+                  ? tStr('guided.autoFinish.tooltip.matches')
+                  : tStr('guided.autoFinish.tooltip.do', {
+                      strategy: strategy === 'above' ? 'Top-down' : 'Bottom-up',
+                      auto: autoRemainingLayers.length,
+                    })
             }
           >
             <span>
@@ -500,7 +519,7 @@ export function GuidedBuildView({ n }: GuidedBuildViewProps) {
               </Button>
             </span>
           </Tooltip>
-          <Tooltip title="重新載入目前 Strategy 下的 Top-Down/Bottom-Up 預設分解。">
+          <Tooltip title={tStr('guided.resetBaseline.tooltip')}>
             <span>
               <Button
                 size="small"
@@ -513,7 +532,7 @@ export function GuidedBuildView({ n }: GuidedBuildViewProps) {
               </Button>
             </span>
           </Tooltip>
-          <Tooltip title="清空所有 layer，從零開始堆。">
+          <Tooltip title={tStr('guided.clearLayers.tooltip')}>
             <span>
               <Button
                 size="small"
@@ -547,13 +566,16 @@ export function GuidedBuildView({ n }: GuidedBuildViewProps) {
             sx={{ mb: 1.5 }}
             onClose={() => setResetBanner(false)}
           >
-            已重新載入 {strategy === 'above' ? 'Top-down' : 'Bottom-up'} 的預設分解（{editedLayers.length} 層），可以開始編輯。
+            {t('guided.resetBanner', {
+              strategy: strategy === 'above' ? 'Top-down' : 'Bottom-up',
+              layers: editedLayers.length,
+            })}
           </Alert>
         )}
 
         {!targetReady ? (
           <Alert severity="info">
-            完成上方連連看（目前 {targetProgress}）後，這裡會自動載入預設分解供你編輯。
+            {t('guided.notReadyAlert', { progress: targetProgress })}
           </Alert>
         ) : (
           <>
@@ -575,7 +597,7 @@ export function GuidedBuildView({ n }: GuidedBuildViewProps) {
                 color="text.secondary"
                 sx={{ mr: 1 }}
               >
-                Layer 序列（左→右為時序）：
+                {t('guided.layerSeqLabel')}
               </Typography>
               <InsertSlot
                 idx={0}
@@ -589,7 +611,7 @@ export function GuidedBuildView({ n }: GuidedBuildViewProps) {
                   key={`layer-${i}-${layer.swap[0]}-${layer.swap[1]}`}
                   sx={{ display: 'inline-flex', alignItems: 'center' }}
                 >
-                  <Tooltip title="向左移一格">
+                  <Tooltip title={tStr('guided.moveLeft.tooltip')}>
                     <span>
                       <IconButton
                         size="small"
@@ -661,7 +683,7 @@ export function GuidedBuildView({ n }: GuidedBuildViewProps) {
                         setEditedLayers((prev) => deleteLayer(prev, i))
                       }
                       deleteIcon={
-                        <Tooltip title="刪除此層">
+                        <Tooltip title={tStr('guided.delete.tooltip')}>
                           <CloseIcon />
                         </Tooltip>
                       }
@@ -678,7 +700,7 @@ export function GuidedBuildView({ n }: GuidedBuildViewProps) {
                       }}
                     />
                   </Box>
-                  <Tooltip title="向右移一格">
+                  <Tooltip title={tStr('guided.moveRight.tooltip')}>
                     <span>
                       <IconButton
                         size="small"
@@ -1007,7 +1029,7 @@ export function GuidedBuildView({ n }: GuidedBuildViewProps) {
               color="text.secondary"
               sx={{ display: 'block', mt: 1 }}
             >
-              分解（時序左→右）：
+              {t('guided.decomposition')}
               <Box
                 component="span"
                 sx={{
@@ -1026,14 +1048,14 @@ export function GuidedBuildView({ n }: GuidedBuildViewProps) {
               color="text.secondary"
               sx={{ display: 'block', mt: 0.5 }}
             >
-              綠點 = 該 row 終點已達 target；紅點 = 偏離；右側虛線格 = target 參考位置。
+              {t('guided.legend')}
             </Typography>
             <Typography
               variant="caption"
               color="text.secondary"
               sx={{ display: 'block', mt: 0.5 }}
             >
-              拖曳節點（跨欄可）：抓住任一欄的 |x⟩ 鎖定那條 strand；落在 source 欄 = 在最前面插入新層；落在 L_c 欄 = 改 L_c 讓該 strand 走到 |y⟩（藍色 = 合法新 swap）；同欄拖回該 strand 的「入射位置」(紅色) = 刪掉 L_c；落在 target 欄 = 在尾端追加一層把該 strand 帶到 target 行（給沒層數時或快收尾用）。「+」/「Add empty layer」 = 插入空 layer，再用拖曳定義。
+              {t('guided.dragHelp')}
             </Typography>
           </>
         )}
@@ -1055,8 +1077,9 @@ function InsertSlot({
   onDragOver?: (e: React.DragEvent) => void;
   onDrop?: (e: React.DragEvent) => void;
 }) {
+  const { tStr } = useI18n();
   return (
-    <Tooltip title={`在位置 ${idx + 1} 插入空 layer / 拖曳 chip 到此移動`}>
+    <Tooltip title={tStr('guided.insertSlot.tooltip', { idx: idx + 1 })}>
       <IconButton
         size="small"
         onClick={onClick}

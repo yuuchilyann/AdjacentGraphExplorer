@@ -11,6 +11,8 @@ import {
 } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
+import { useI18n } from '../i18n';
+
 type EnvKey = 'pip' | 'conda' | 'uv';
 
 /**
@@ -34,6 +36,7 @@ const ENVS: { key: EnvKey; label: string; cmd: string }[] = [
 ];
 
 export function QiskitInstallBlock() {
+  const { t, tStr } = useI18n();
   const [env, setEnv] = useState<EnvKey>('pip');
   const [toast, setToast] = useState<{ open: boolean; msg: string }>({
     open: false,
@@ -45,9 +48,12 @@ export function QiskitInstallBlock() {
   const onCopy = async () => {
     try {
       await navigator.clipboard.writeText(cmd);
-      setToast({ open: true, msg: '已複製安裝指令到剪貼簿' });
+      setToast({ open: true, msg: tStr('export.toast.installCopied') });
     } catch (e) {
-      setToast({ open: true, msg: `複製失敗：${(e as Error).message}` });
+      setToast({
+        open: true,
+        msg: tStr('export.toast.copyFailed', { error: (e as Error).message }),
+      });
     }
   };
 
@@ -75,7 +81,7 @@ export function QiskitInstallBlock() {
         }}
       >
         <Typography variant="caption" color="text.secondary">
-          環境安裝
+          {t('export.install.label')}
         </Typography>
         <ToggleButtonGroup
           value={env}
@@ -91,7 +97,7 @@ export function QiskitInstallBlock() {
           ))}
         </ToggleButtonGroup>
         <Box sx={{ flexGrow: 1 }} />
-        <Tooltip title="複製安裝指令">
+        <Tooltip title={tStr('export.install.copy.tooltip')}>
           <IconButton
             size="small"
             onClick={onCopy}
@@ -126,7 +132,7 @@ export function QiskitInstallBlock() {
         color="text.secondary"
         sx={{ display: 'block', px: 2, pb: 1 }}
       >
-        含 matplotlib / pylatexenc，支援 qc.draw("mpl") 圖形輸出。
+        {t('export.install.hint')}
       </Typography>
 
       <Snackbar

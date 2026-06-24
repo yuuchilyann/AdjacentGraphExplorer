@@ -6,6 +6,8 @@ import {
   Paper,
   Stack,
   Switch,
+  Tab,
+  Tabs,
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
@@ -13,6 +15,15 @@ import {
 } from '@mui/material';
 
 import type { LayeredRealization } from '../lib/layered';
+import {
+  buildIpynb,
+  buildQiskitCode,
+  buildQiskitNotebook,
+  type QiskitGate,
+} from '../lib/qiskit';
+import { CodePanel } from './CodePanel';
+import { JupyterPanel } from './JupyterPanel';
+import { QiskitInstallBlock } from './QiskitInstallBlock';
 import { SvgViewport } from './SvgViewport';
 
 export type QuantumCircuitViewProps = {
@@ -78,10 +89,16 @@ export function QuantumCircuitView({
   // useful on-screen but gets baked into the "Copy as PNG" export, so let the
   // user hide it to capture a clean, standard circuit diagram.
   const [showPlayhead, setShowPlayhead] = useState(true);
+  const [tab, setTab] = useState<'diagram' | 'qiskit' | 'jupyter'>('diagram');
 
   if (n <= 0 || realization.layers.length === 0) return null;
 
   const gates: Gate[] = realization.layers.map((l) => buildGate(l.swap, n));
+  // Same gates, annotated with their originating swap, for the code exporters.
+  const qiskitGates: QiskitGate[] = gates.map((g, k) => ({
+    ...g,
+    swap: realization.layers[k].swap,
+  }));
 
   // Layout — MSQ (least-significant qubit at the BOTTOM).
   const rowH = 44;
@@ -247,13 +264,20 @@ export function QuantumCircuitView({
           </Tooltip>
         </Stack>
 
-        <Tooltip title="顯示對齊目前播放位置的橘色高亮區域。關閉後「複製為 PNG」即為標準量子電路圖。">
+        <Tooltip
+          title={
+            tab !== 'diagram'
+              ? '此開關僅作用於電路圖分頁。'
+              : '顯示對齊目前播放位置的橘色高亮區域。關閉後「複製為 PNG」即為標準量子電路圖。'
+          }
+        >
           <FormControlLabel
             sx={{ ml: 0, mr: 0 }}
             control={
               <Switch
                 size="small"
                 checked={showPlayhead}
+                disabled={tab !== 'diagram'}
                 onChange={(_, v) => setShowPlayhead(v)}
               />
             }
@@ -266,6 +290,50 @@ export function QuantumCircuitView({
         </Tooltip>
       </Stack>
 
+      {/* Tabs — diagram vs Qiskit source (two views of the same gate list) */}
+      <Tabs
+        value={tab}
+        onChange={(_, v: 'diagram' | 'qiskit' | 'jupyter') => setTab(v)}
+        sx={{ mb: 1.5, minHeight: 36 }}
+      >
+        <Tab value="diagram" label="電路圖" sx={{ minHeight: 36, py: 0 }} />
+        <Tab
+          value="qiskit"
+          label="Qiskit 程式碼"
+          sx={{ minHeight: 36, py: 0 }}
+        />
+        <Tab
+          value="jupyter"
+          label="Jupyter / Colab"
+          sx={{ minHeight: 36, py: 0 }}
+        />
+      </Tabs>
+
+      {tab === 'qiskit' && <QiskitInstallBlock />}
+
+      {tab === 'qiskit' && (
+        <CodePanel
+          code={buildQiskitCode(qiskitGates, n, mode, realization.strategy)}
+          filename={`qiskit-circuit-n${n}-${realization.strategy}-${mode}`}
+        />
+      )}
+
+      {tab === 'jupyter' && (
+        <JupyterPanel
+          cells={buildQiskitNotebook(
+            qiskitGates,
+            n,
+            mode,
+            realization.strategy,
+          )}
+          ipynb={buildIpynb(
+            buildQiskitNotebook(qiskitGates, n, mode, realization.strategy),
+          )}
+          filename={`qiskit-circuit-n${n}-${realization.strategy}-${mode}`}
+        />
+      )}
+
+      {tab === 'diagram' && (
       <SvgViewport
         svgRef={svgRef}
         filename={`quantum-circuit-n${n}-${realization.strategy}-${mode}`}
@@ -481,6 +549,7 @@ export function QuantumCircuitView({
             })}
         </svg>
       </SvgViewport>
+      )}
 
       <Typography
         variant="caption"

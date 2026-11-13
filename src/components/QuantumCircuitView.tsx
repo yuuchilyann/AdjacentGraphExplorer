@@ -35,6 +35,16 @@ export type QuantumCircuitViewProps = {
 };
 
 type Mode = 'mixed' | 'positive';
+/**
+ * Vertical qubit order of the diagram.
+ *  - 'msq'    : |x₀⟩ at the BOTTOM, |x_{n-1}⟩ at the top (big-endian reading).
+ *  - 'qiskit' : |x₀⟩ at the TOP, matching Qiskit's default `qc.draw('mpl')`.
+ */
+type QubitOrder = 'msq' | 'qiskit';
+
+/** Unicode subscript digits, e.g. 3 → '₃', 12 → '₁₂'. */
+const sub = (k: number): string =>
+  String(k).replace(/\d/g, (d) => '₀₁₂₃₄₅₆₇₈₉'[Number(d)]!);
 
 const COLOR_ACTIVE = '#ed6c02';
 const COLOR_WIRE = '#1f1f1f';
@@ -92,6 +102,7 @@ export function QuantumCircuitView({
   // user hide it to capture a clean, standard circuit diagram.
   const [showPlayhead, setShowPlayhead] = useState(true);
   const [tab, setTab] = useState<'diagram' | 'qiskit' | 'jupyter'>('diagram');
+  const [order, setOrder] = useState<QubitOrder>('msq');
 
   if (n <= 0 || realization.layers.length === 0) return null;
 
@@ -119,8 +130,10 @@ export function QuantumCircuitView({
   const totalH = padY * 2 + n * rowH;
   const totalW = startX + gates.length * slotsPerGate * slotW + endPadX;
 
-  // q is the qubit index; MSQ means q=0 sits at the BOTTOM.
-  const yForQ = (q: number) => padY + (n - 1 - q) * rowH + rowH / 2;
+  // q is the qubit index; MSQ means q=0 sits at the BOTTOM, Qiskit order
+  // puts q=0 at the TOP.
+  const yForQ = (q: number) =>
+    padY + (order === 'msq' ? n - 1 - q : q) * rowH + rowH / 2;
 
   // x position of a specific slot within a layer.
   //  - mixed mode: slot is always 0 (the gate)
@@ -169,7 +182,7 @@ export function QuantumCircuitView({
             {t('circuit.title')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {t('circuit.subtitle', { n, gateColor: COLOR_GATE })}
+            {t('circuit.subtitle', { n, gateColor: COLOR_GATE, order })}
           </Typography>
         </Box>
       </Stack>
@@ -218,6 +231,36 @@ export function QuantumCircuitView({
             </ToggleButtonGroup>
           </Tooltip>
         </Stack>
+
+        {/* Single-button flip, same widget as LayeredView's `↕ |00⟩→|11⟩`:
+            the label reads the wires top → bottom; "selected" = non-default
+            (Qiskit) order. */}
+        <Tooltip
+          title={
+            tab !== 'diagram'
+              ? t('circuit.order.tooltip.off')
+              : order === 'msq'
+                ? t('circuit.order.tooltip.msq', { n })
+                : t('circuit.order.tooltip.qiskit', { n })
+          }
+        >
+          <span>
+            <ToggleButton
+              value="qiskit-order"
+              size="small"
+              selected={order === 'qiskit'}
+              disabled={tab !== 'diagram'}
+              onChange={() => setOrder((o) => (o === 'msq' ? 'qiskit' : 'msq'))}
+              // Keep `x` lowercase — MUI uppercases button text by default,
+              // and a capital `X` reads like an X gate.
+              sx={{ textTransform: 'none' }}
+            >
+              {order === 'msq'
+                ? `↕ |x${sub(n - 1)}⟩→|x₀⟩`
+                : `↕ |x₀⟩→|x${sub(n - 1)}⟩`}
+            </ToggleButton>
+          </span>
+        </Tooltip>
 
         <Tooltip
           title={
@@ -292,7 +335,9 @@ export function QuantumCircuitView({
       {tab === 'diagram' && (
       <SvgViewport
         svgRef={svgRef}
-        filename={`quantum-circuit-n${n}-${realization.strategy}-${mode}`}
+        filename={`quantum-circuit-n${n}-${realization.strategy}-${mode}${
+          order === 'qiskit' ? '-q0top' : ''
+        }`}
       >
         <svg
           ref={svgRef}
@@ -329,6 +374,27 @@ export function QuantumCircuitView({
             );
           })}
 
+          {/* Future-wire dim overlay: redraw the tail dim if step < total.
+              Drawn before the gates so it never paints over gate symbols. */}
+          {showPlayhead &&
+            step < gates.length &&
+            Array.from({ length: n }, (_, q) => q).map((q) => {
+              const y = yForQ(q);
+              const x1 = step === 0 ? startX - 6 : xLayerRight(step - 1);
+              return (
+                <line
+                  key={`wf-${q}`}
+                  x1={x1}
+                  y1={y}
+                  x2={wireEndX}
+                  y2={y}
+                  stroke={COLOR_WIRE_FUTURE}
+                  strokeWidth={1.4}
+                  strokeDasharray="4 4"
+                  opacity={0.6}
+                />
+              );
+            })}
           {/* Gates */}
           {gates.map((g, k) => {
             const status = gateStatus(k);
@@ -336,8 +402,8 @@ export function QuantumCircuitView({
             const x = xGate(k);
 
             // Vertical span: every qubit is involved (target + n-1 controls).
-            const yTop = yForQ(n - 1);
-            const yBot = yForQ(0);
+            const yTop = Math.min(yForQ(0), yForQ(n - 1));
+            const yBot = Math.max(yForQ(0), yForQ(n - 1));
 
             // X-gate flanking columns (only in positive-only mode).
             const xPre = mode === 'positive' ? xForSlot(k, 0) : null;
@@ -422,32 +488,30 @@ export function QuantumCircuitView({
                 {g.controls.map((kind, q) => {
                   const y = yForQ(q);
                   if (kind === 'target') {
-                    const r = 12;
+                    // Qiskit-mpl style ⊕: a solid disc in the gate colour with
+                    // a white plus inside (the plus stops short of the rim).
+                    const r = 13;
+                    const arm = r * 0.6;
                     return (
                       <g key={`gm-${k}-${q}`}>
-                        <circle
-                          cx={x}
-                          cy={y}
-                          r={r}
-                          fill="#fff"
-                          stroke={color}
-                          strokeWidth={1.8}
-                        />
+                        <circle cx={x} cy={y} r={r} fill={color} />
                         <line
-                          x1={x - r}
+                          x1={x - arm}
                           y1={y}
-                          x2={x + r}
+                          x2={x + arm}
                           y2={y}
-                          stroke={color}
-                          strokeWidth={1.8}
+                          stroke="#fff"
+                          strokeWidth={2.4}
+                          strokeLinecap="round"
                         />
                         <line
                           x1={x}
-                          y1={y - r}
+                          y1={y - arm}
                           x2={x}
-                          y2={y + r}
-                          stroke={color}
-                          strokeWidth={1.8}
+                          y2={y + arm}
+                          stroke="#fff"
+                          strokeWidth={2.4}
+                          strokeLinecap="round"
                         />
                       </g>
                     );
@@ -483,26 +547,6 @@ export function QuantumCircuitView({
             );
           })}
 
-          {/* Future-wire dim overlay: redraw the tail dim if step < total */}
-          {showPlayhead &&
-            step < gates.length &&
-            Array.from({ length: n }, (_, q) => q).map((q) => {
-              const y = yForQ(q);
-              const x1 = step === 0 ? startX - 6 : xLayerRight(step - 1);
-              return (
-                <line
-                  key={`wf-${q}`}
-                  x1={x1}
-                  y1={y}
-                  x2={wireEndX}
-                  y2={y}
-                  stroke={COLOR_WIRE_FUTURE}
-                  strokeWidth={1.4}
-                  strokeDasharray="4 4"
-                  opacity={0.6}
-                />
-              );
-            })}
         </svg>
       </SvgViewport>
       )}

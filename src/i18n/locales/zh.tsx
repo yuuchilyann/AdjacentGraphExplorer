@@ -171,7 +171,12 @@ export const zh = {
       差異位元 = target（⊕），其餘 n−1 個位元為控制端 —
       <Swatch filled color={p.gateColor as string} />=1、
       <Swatch filled={false} color={p.gateColor as string} />=0。
-      線路採用 MSQ 配置：最下方為 |x₀⟩，最上方為 |x{(p.n as number) - 1}⟩；時間軸由左至右。
+      {p.order === 'qiskit' ? (
+        <>線路採用 Qiskit 順序：最上方為 |x₀⟩，最下方為 |x{(p.n as number) - 1}⟩（與 Colab 的 qc.draw() 一致）；</>
+      ) : (
+        <>線路採用 MSQ 配置：最下方為 |x₀⟩，最上方為 |x{(p.n as number) - 1}⟩；</>
+      )}
+      時間軸由左至右。
     </>
   ),
   'circuit.controlLabel': '控制端',
@@ -184,6 +189,11 @@ export const zh = {
   'circuit.playhead.tooltip.on':
     '顯示對齊目前播放位置的橘色高亮區域。關閉後「複製為 PNG」即為標準量子電路圖。',
   'circuit.playhead.label': '播放位置高亮',
+  'circuit.order.tooltip.msq': (p: TParams) =>
+    `目前：MSQ 配置，由上而下 |x${(p.n as number) - 1}⟩ … |x₀⟩（與 ket 字串由左至右的讀法一致）。點擊切換為 Qiskit 順序（與 Colab 的 qc.draw('mpl') 相同）。`,
+  'circuit.order.tooltip.qiskit': (p: TParams) =>
+    `目前：Qiskit 順序，由上而下 |x₀⟩ … |x${(p.n as number) - 1}⟩（與 Colab 的 qc.draw('mpl') 相同）。點擊切回 MSQ 配置。`,
+  'circuit.order.tooltip.off': '此切換僅作用於電路圖分頁。',
   'circuit.tab.diagram': '電路圖',
   'circuit.tab.qiskit': 'Qiskit 程式碼',
   'circuit.tab.jupyter': 'Jupyter / Colab',

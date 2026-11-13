@@ -167,7 +167,12 @@ export const en = {
       the differing bit = target (⊕), the other n−1 bits are controls —
       <Swatch filled color={p.gateColor as string} />=1,
       <Swatch filled={false} color={p.gateColor as string} />=0.
-      The circuit uses an MSQ layout: |x₀⟩ at the bottom, |x{(p.n as number) - 1}⟩ at the top; time flows left to right.
+      {p.order === 'qiskit' ? (
+        <>The circuit uses Qiskit order: |x₀⟩ at the top, |x{(p.n as number) - 1}⟩ at the bottom (same as qc.draw() in Colab); </>
+      ) : (
+        <>The circuit uses an MSQ layout: |x₀⟩ at the bottom, |x{(p.n as number) - 1}⟩ at the top; </>
+      )}
+      time flows left to right.
     </>
   ),
   'circuit.controlLabel': 'Controls',
@@ -180,6 +185,11 @@ export const en = {
   'circuit.playhead.tooltip.on':
     'Show the orange highlight aligned to the current playback position. Turn it off so “Copy as PNG” yields a standard circuit diagram.',
   'circuit.playhead.label': 'Playback highlight',
+  'circuit.order.tooltip.msq': (p: TParams) =>
+    `Current: MSQ layout, top to bottom |x${(p.n as number) - 1}⟩ … |x₀⟩ (matches how the ket string reads left to right). Click to switch to Qiskit order (same as qc.draw('mpl') in Colab).`,
+  'circuit.order.tooltip.qiskit': (p: TParams) =>
+    `Current: Qiskit order, top to bottom |x₀⟩ … |x${(p.n as number) - 1}⟩ (same as qc.draw('mpl') in Colab). Click to switch back to the MSQ layout.`,
+  'circuit.order.tooltip.off': 'This toggle only affects the diagram tab.',
   'circuit.tab.diagram': 'Diagram',
   'circuit.tab.qiskit': 'Qiskit code',
   'circuit.tab.jupyter': 'Jupyter / Colab',

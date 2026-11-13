@@ -319,6 +319,13 @@ export const en = {
   'builder.selfLoop.tooltip.blocked':
     'The remaining unconnected sources already have their own targets taken, so self-loops can’t be auto-filled (resolve manually or clear the conflict)',
   'builder.cycleLabel': 'Cycle notation',
+  'builder.base.binary': 'Binary',
+  'builder.base.decimal': 'Decimal',
+  'builder.base.tooltip.binary':
+    'Binary: kets shown as bit strings, e.g. |101⟩ (applies to the cycle and two-line notation)',
+  'builder.base.tooltip.decimal':
+    'Decimal: kets shown as basis indices, e.g. |5⟩ (applies to the cycle and two-line notation)',
+  'builder.base.tooltip.empty': 'No edges yet, so there are no kets to switch.',
   'builder.twoLineLabel': 'Two-line (Cauchy) notation',
   'builder.twoLineOmitted': (p: TParams) =>
     `n = ${p.n} ⇒ 2ⁿ = ${p.total}: too many columns, full expansion omitted.`,

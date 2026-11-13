@@ -321,6 +321,11 @@ export const zh = {
   'builder.selfLoop.tooltip.blocked':
     '剩餘未連來源的自身目標已被佔用，無法自動補 self-loop（請手動處理或清除衝突）',
   'builder.cycleLabel': 'Cycle 表示',
+  'builder.base.binary': '二進位',
+  'builder.base.decimal': '十進位',
+  'builder.base.tooltip.binary': '二進位：ket 以位元字串顯示，例如 |101⟩（作用於 Cycle 與雙行表示法）',
+  'builder.base.tooltip.decimal': '十進位：ket 以基底索引顯示，例如 |5⟩（作用於 Cycle 與雙行表示法）',
+  'builder.base.tooltip.empty': '尚未有任何連線，沒有可切換顯示的 ket。',
   'builder.twoLineLabel': '雙行（Cauchy）表示法',
   'builder.twoLineOmitted': (p: TParams) =>
     `n = ${p.n} ⇒ 2ⁿ = ${p.total}，欄數過多，略去完整展開。`,

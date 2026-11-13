@@ -62,16 +62,33 @@ const MATRIX_HIGHLIGHT = '#ed6c02';
 const ketTex = (i: number, n: number): string =>
   n === 0 ? '|\\,\\rangle' : `|${i.toString(2).padStart(n, '0')}\\rangle`;
 
+/** How kets are written in the cycle / two-line notation. */
+type KetBase = 'binary' | 'decimal';
+
+/** LaTeX ket in the chosen base: |101⟩ (binary) or |5⟩ (decimal). */
+const ketTexIn = (i: number, n: number, base: KetBase): string =>
+  base === 'decimal' ? `|${i}\\rangle` : ketTex(i, n);
+
+/** Plain-text cycle notation with decimal kets, e.g. (|0⟩ |5⟩ |7⟩). */
+const formatCyclesDecimal = (cycles: number[][]): string =>
+  cycles.length === 0
+    ? 'identity'
+    : cycles.map((c) => `(${c.map((i) => `|${i}⟩`).join(' ')})`).join(' ');
+
 /**
  * Cauchy two-line (standard) notation for an arbitrary (partial) permutation.
  * Unmapped sources are rendered as `\cdot`.
  */
-function fullPermTwoLineTex(mapping: Map<number, number>, n: number): string {
+function fullPermTwoLineTex(
+  mapping: Map<number, number>,
+  n: number,
+  base: KetBase,
+): string {
   const N = 1 << n;
-  const topRow = Array.from({ length: N }, (_, i) => ketTex(i, n)).join(' & ');
+  const topRow = Array.from({ length: N }, (_, i) => ketTexIn(i, n, base)).join(' & ');
   const botRow = Array.from({ length: N }, (_, i) => {
     const t = mapping.get(i);
-    return t !== undefined ? ketTex(t, n) : '\\cdot';
+    return t !== undefined ? ketTexIn(t, n, base) : '\\cdot';
   }).join(' & ');
   return `\\begin{pmatrix} ${topRow} \\\\ ${botRow} \\end{pmatrix}`;
 }
@@ -150,6 +167,7 @@ export function PermutationBuilder({
   const { t, tStr } = useI18n();
   const [mapping, setMapping] = useState<Map<number, number>>(new Map());
   const [matrixAnnotated, setMatrixAnnotated] = useState(true);
+  const [ketBase, setKetBase] = useState<KetBase>('binary');
 
   useEffect(() => {
     onMappingChange?.(mapping);
@@ -637,14 +655,43 @@ export function PermutationBuilder({
 
       <Stack spacing={1} sx={{ mt: 1.5 }}>
         <Box>
-          <Typography variant="caption" color="text.secondary">
-            {t('builder.cycleLabel')}
-          </Typography>
+          <Stack direction="row" sx={{ alignItems: 'center', mb: 0.5 }} spacing={1}>
+            <Typography variant="caption" color="text.secondary" sx={{ flexGrow: 1 }}>
+              {t('builder.cycleLabel')}
+            </Typography>
+            {/* One switch drives both the cycle string and the two-line
+                notation, so the two always use the same ket labels. */}
+            <Tooltip
+              title={
+                mapping.size === 0
+                  ? tStr('builder.base.tooltip.empty')
+                  : ketBase === 'binary'
+                    ? tStr('builder.base.tooltip.binary')
+                    : tStr('builder.base.tooltip.decimal')
+              }
+            >
+              <span>
+                <ToggleButtonGroup
+                  value={ketBase}
+                  exclusive
+                  size="small"
+                  disabled={mapping.size === 0}
+                  onChange={(_, v: KetBase | null) => v && setKetBase(v)}
+                >
+                  <ToggleButton value="binary">{t('builder.base.binary')}</ToggleButton>
+                  <ToggleButton value="decimal">{t('builder.base.decimal')}</ToggleButton>
+                </ToggleButtonGroup>
+              </span>
+            </Tooltip>
+          </Stack>
           <Typography
             variant="body2"
             sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}
           >
-            α = {formatCycles(cycles, n)}
+            α ={' '}
+            {ketBase === 'decimal'
+              ? formatCyclesDecimal(cycles)
+              : formatCycles(cycles, n)}
           </Typography>
         </Box>
         {mapping.size > 0 && (
@@ -654,7 +701,7 @@ export function PermutationBuilder({
             </Typography>
             {total <= TWO_LINE_MAX_DIM ? (
               <Box sx={{ overflowX: 'auto' }}>
-                <MathTex display tex={fullPermTwoLineTex(mapping, n)} />
+                <MathTex display tex={fullPermTwoLineTex(mapping, n, ketBase)} />
               </Box>
             ) : (
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>

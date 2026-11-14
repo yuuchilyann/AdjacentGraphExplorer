@@ -24,6 +24,7 @@ import {
   cycleDecomposition,
   formatCycles,
   hammingDistance,
+  type KetBase,
   isComplete,
   isLegalEdge,
   legalTargetsFor,
@@ -62,18 +63,9 @@ const MATRIX_HIGHLIGHT = '#ed6c02';
 const ketTex = (i: number, n: number): string =>
   n === 0 ? '|\\,\\rangle' : `|${i.toString(2).padStart(n, '0')}\\rangle`;
 
-/** How kets are written in the cycle / two-line notation. */
-type KetBase = 'binary' | 'decimal';
-
 /** LaTeX ket in the chosen base: |101⟩ (binary) or |5⟩ (decimal). */
 const ketTexIn = (i: number, n: number, base: KetBase): string =>
   base === 'decimal' ? `|${i}\\rangle` : ketTex(i, n);
-
-/** Plain-text cycle notation with decimal kets, e.g. (|0⟩ |5⟩ |7⟩). */
-const formatCyclesDecimal = (cycles: number[][]): string =>
-  cycles.length === 0
-    ? 'identity'
-    : cycles.map((c) => `(${c.map((i) => `|${i}⟩`).join(' ')})`).join(' ');
 
 /**
  * Cauchy two-line (standard) notation for an arbitrary (partial) permutation.
@@ -678,8 +670,8 @@ export function PermutationBuilder({
                   disabled={mapping.size === 0}
                   onChange={(_, v: KetBase | null) => v && setKetBase(v)}
                 >
-                  <ToggleButton value="binary">{t('builder.base.binary')}</ToggleButton>
-                  <ToggleButton value="decimal">{t('builder.base.decimal')}</ToggleButton>
+                  <ToggleButton value="binary">{t('ketBase.binary')}</ToggleButton>
+                  <ToggleButton value="decimal">{t('ketBase.decimal')}</ToggleButton>
                 </ToggleButtonGroup>
               </span>
             </Tooltip>
@@ -688,10 +680,7 @@ export function PermutationBuilder({
             variant="body2"
             sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}
           >
-            α ={' '}
-            {ketBase === 'decimal'
-              ? formatCyclesDecimal(cycles)
-              : formatCycles(cycles, n)}
+            α = {formatCycles(cycles, n, ketBase)}
           </Typography>
         </Box>
         {mapping.size > 0 && (

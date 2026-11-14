@@ -132,14 +132,25 @@ export function isComplete(mapping: Mapping, n: number): boolean {
   return seen.size === total;
 }
 
-export function formatKet(index: number, n: number): string {
+/**
+ * How a basis-state ket is written: as an n-bit string (|101⟩) or as its
+ * decimal index (|5⟩). Shared by every view that offers the 二進位／十進位 toggle.
+ */
+export type KetBase = 'binary' | 'decimal';
+
+export function formatKet(index: number, n: number, base: KetBase = 'binary'): string {
   if (n === 0) return '|⟩';
+  if (base === 'decimal') return `|${index}⟩`;
   return `|${index.toString(2).padStart(n, '0')}⟩`;
 }
 
-export function formatCycles(cycles: number[][], n: number): string {
+export function formatCycles(
+  cycles: number[][],
+  n: number,
+  base: KetBase = 'binary',
+): string {
   if (cycles.length === 0) return 'identity';
   return cycles
-    .map((c) => `(${c.map((i) => formatKet(i, n)).join(' ')})`)
+    .map((c) => `(${c.map((i) => formatKet(i, n, base)).join(' ')})`)
     .join(' ');
 }

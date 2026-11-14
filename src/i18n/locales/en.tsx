@@ -267,6 +267,12 @@ export const en = {
     'Off: every column uses the default 0..2ⁿ-1 order, so ket positions are predictable but strands cross',
   'chain.pathAware': 'Sort by path',
   'chain.stage.status.complete': 'complete',
+  'chain.cycleSection': 'Cycle notation',
+  'chain.base.tooltip.binary':
+    'Binary: kets shown as bit strings, e.g. |101⟩ (applies to every α stage and the composite α_total)',
+  'chain.base.tooltip.decimal':
+    'Decimal: kets shown as basis indices, e.g. |5⟩ (applies to every α stage and the composite α_total)',
+  'chain.base.tooltip.empty': 'Every stage is currently the identity, so there are no kets to switch.',
   'chain.stage.cycleLabel': (p: TParams) => `α${p.k} cycle notation (${p.status})`,
   'chain.stage.identity.tooltip': (p: TParams) =>
     `Pass-through connect α${p.k} (α(x) = x, connect same rows directly)`,
@@ -318,9 +324,9 @@ export const en = {
   'builder.selfLoop.tooltip.complete': 'The permutation is complete; no self-loops needed',
   'builder.selfLoop.tooltip.blocked':
     'The remaining unconnected sources already have their own targets taken, so self-loops can’t be auto-filled (resolve manually or clear the conflict)',
+  'ketBase.binary': 'Binary',
+  'ketBase.decimal': 'Decimal',
   'builder.cycleLabel': 'Cycle notation',
-  'builder.base.binary': 'Binary',
-  'builder.base.decimal': 'Decimal',
   'builder.base.tooltip.binary':
     'Binary: kets shown as bit strings, e.g. |101⟩ (applies to the cycle and two-line notation)',
   'builder.base.tooltip.decimal':

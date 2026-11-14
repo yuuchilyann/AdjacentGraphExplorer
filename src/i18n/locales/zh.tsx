@@ -269,6 +269,10 @@ export const zh = {
     '關閉：每欄都用 0..2ⁿ-1 預設順序，欄內 ket 位置可預測，但 strand 會交叉',
   'chain.pathAware': '依路徑排序',
   'chain.stage.status.complete': '完整',
+  'chain.cycleSection': 'Cycle 表示',
+  'chain.base.tooltip.binary': '二進位：ket 以位元字串顯示，例如 |101⟩（作用於各段 α 與合成 α_total）',
+  'chain.base.tooltip.decimal': '十進位：ket 以基底索引顯示，例如 |5⟩（作用於各段 α 與合成 α_total）',
+  'chain.base.tooltip.empty': '目前各段皆為 identity，沒有可切換顯示的 ket。',
   'chain.stage.cycleLabel': (p: TParams) => `α${p.k} cycle 表示（${p.status}）`,
   'chain.stage.identity.tooltip': (p: TParams) =>
     `直通連接 α${p.k}（α(x) = x，將同列直接連起來）`,
@@ -320,9 +324,9 @@ export const zh = {
   'builder.selfLoop.tooltip.complete': '排列已完整，無需補 self-loop',
   'builder.selfLoop.tooltip.blocked':
     '剩餘未連來源的自身目標已被佔用，無法自動補 self-loop（請手動處理或清除衝突）',
+  'ketBase.binary': '二進位',
+  'ketBase.decimal': '十進位',
   'builder.cycleLabel': 'Cycle 表示',
-  'builder.base.binary': '二進位',
-  'builder.base.decimal': '十進位',
   'builder.base.tooltip.binary': '二進位：ket 以位元字串顯示，例如 |101⟩（作用於 Cycle 與雙行表示法）',
   'builder.base.tooltip.decimal': '十進位：ket 以基底索引顯示，例如 |5⟩（作用於 Cycle 與雙行表示法）',
   'builder.base.tooltip.empty': '尚未有任何連線，沒有可切換顯示的 ket。',

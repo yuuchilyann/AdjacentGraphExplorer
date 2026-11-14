@@ -11,6 +11,7 @@ import {
   Stack,
   Switch,
   ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from '@mui/material';
@@ -26,6 +27,7 @@ import LoopIcon from '@mui/icons-material/Loop';
 import {
   cycleDecomposition,
   formatCycles,
+  type KetBase,
   hammingDistance,
   isComplete,
   isLegalEdge,
@@ -80,6 +82,7 @@ export function PermutationChain({ n }: PermutationChainProps) {
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
   const [showPerStageLayered, setShowPerStageLayered] = useState(false);
   const [pathAware, setPathAware] = useState(false);
+  const [ketBase, setKetBase] = useState<KetBase>('binary');
   const svgRef = useRef<SVGSVGElement>(null);
 
   // Reset whenever n changes.
@@ -480,6 +483,9 @@ export function PermutationChain({ n }: PermutationChainProps) {
     () => (composite ? cycleDecomposition(composite, n) : []),
     [composite, n],
   );
+  // The base toggle only matters when some cycle line actually shows kets.
+  const hasAnyCycle =
+    compositeCycles.length > 0 || cyclesPerStage.some((c) => c.length > 0);
 
   return (
     <Paper variant="outlined" sx={{ p: 2 }}>
@@ -852,6 +858,40 @@ export function PermutationChain({ n }: PermutationChainProps) {
 
       {/* Per-stage cycle decomposition (with per-stage random / clear actions) */}
       <Stack spacing={1} sx={{ mt: 1.5 }}>
+        {/* One 二進位／十進位 switch for every α_k line and α_total, so all the
+            cycle strings use the same ket labels. Disabled while every line
+            reads `identity` (no kets to switch). */}
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ flexGrow: 1 }}
+          >
+            {t('chain.cycleSection')}
+          </Typography>
+          <Tooltip
+            title={
+              !hasAnyCycle
+                ? tStr('chain.base.tooltip.empty')
+                : ketBase === 'binary'
+                  ? tStr('chain.base.tooltip.binary')
+                  : tStr('chain.base.tooltip.decimal')
+            }
+          >
+            <span>
+              <ToggleButtonGroup
+                value={ketBase}
+                exclusive
+                size="small"
+                disabled={!hasAnyCycle}
+                onChange={(_, v: KetBase | null) => v && setKetBase(v)}
+              >
+                <ToggleButton value="binary">{t('ketBase.binary')}</ToggleButton>
+                <ToggleButton value="decimal">{t('ketBase.decimal')}</ToggleButton>
+              </ToggleButtonGroup>
+            </span>
+          </Tooltip>
+        </Stack>
         {cyclesPerStage.map((cyc, k) => (
           <Box key={`cyc-${k}`}>
             <Stack
@@ -928,7 +968,7 @@ export function PermutationChain({ n }: PermutationChainProps) {
                   'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
               }}
             >
-              α{k + 1} = {formatCycles(cyc, n)}
+              α{k + 1} = {formatCycles(cyc, n, ketBase)}
             </Typography>
           </Box>
         ))}
@@ -955,7 +995,7 @@ export function PermutationChain({ n }: PermutationChainProps) {
                   'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
               }}
             >
-              α<sub>total</sub> = {formatCycles(compositeCycles, n)}
+              α<sub>total</sub> = {formatCycles(compositeCycles, n, ketBase)}
             </Typography>
             <Typography
               variant="caption"

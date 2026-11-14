@@ -27,6 +27,7 @@ import LoopIcon from '@mui/icons-material/Loop';
 import {
   cycleDecomposition,
   formatCycles,
+  subscript,
   type KetBase,
   hammingDistance,
   isComplete,
@@ -679,7 +680,7 @@ export function PermutationChain({ n }: PermutationChainProps) {
               fill="#555"
               fontWeight={600}
             >
-              |X{c + 1}⟩
+              |X{subscript(c + 1)}⟩
             </text>
           ))}
           {/* Stage labels (α_k) above the gap between columns */}

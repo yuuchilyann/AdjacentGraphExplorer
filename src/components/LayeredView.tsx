@@ -21,7 +21,7 @@ import VerifiedIcon from '@mui/icons-material/Verified';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import Chip from '@mui/material/Chip';
 
-import type { Mapping } from '../lib/permutation';
+import { subscript, type Mapping } from '../lib/permutation';
 import {
   formatSwap,
   realizeChain,
@@ -191,14 +191,12 @@ export function LayeredView({
   // Chain mode: which Permutation Chain column |X_k⟩ each state column equals.
   // Column 0 is |X₁⟩ and stage α_k ends on |X_{k+1}⟩. An empty (identity)
   // stage ends where it starts, so one column can carry two names (|X₂⟩=|X₃⟩).
-  const subDigits = (k: number) =>
-    String(k).replace(/\d/g, (d) => '₀₁₂₃₄₅₆₇₈₉'[Number(d)]!);
   const chainStateLabel = new Map<number, string[]>();
   if (segments) {
     const add = (col: number, k: number) =>
       chainStateLabel.set(col, [
         ...(chainStateLabel.get(col) ?? []),
-        `|X${subDigits(k)}⟩`,
+        `|X${subscript(k)}⟩`,
       ]);
     add(0, 1);
     segments.forEach((s, k) => add(s.end, k + 2));

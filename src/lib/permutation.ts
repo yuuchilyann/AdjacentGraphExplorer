@@ -138,6 +138,11 @@ export function isComplete(mapping: Mapping, n: number): boolean {
  */
 export type KetBase = 'binary' | 'decimal';
 
+/** Unicode subscript digits for labels such as |X₁⟩ or |x₁₂⟩: 12 → '₁₂'. */
+export function subscript(k: number): string {
+  return String(k).replace(/\d/g, (d) => '₀₁₂₃₄₅₆₇₈₉'[Number(d)]!);
+}
+
 export function formatKet(index: number, n: number, base: KetBase = 'binary'): string {
   if (n === 0) return '|⟩';
   if (base === 'decimal') return `|${index}⟩`;

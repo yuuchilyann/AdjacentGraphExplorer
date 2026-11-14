@@ -26,6 +26,7 @@ import {
   buildQiskitNotebook,
   type QiskitGate,
 } from '../lib/qiskit';
+import { subscript } from '../lib/permutation';
 import { CodePanel } from './CodePanel';
 import { JupyterPanel } from './JupyterPanel';
 import { QiskitInstallBlock } from './QiskitInstallBlock';
@@ -52,9 +53,6 @@ type Mode = 'mixed' | 'positive';
  */
 type QubitOrder = 'msq' | 'qiskit';
 
-/** Unicode subscript digits, e.g. 3 → '₃', 12 → '₁₂'. */
-const sub = (k: number): string =>
-  String(k).replace(/\d/g, (d) => '₀₁₂₃₄₅₆₇₈₉'[Number(d)]!);
 
 const COLOR_ACTIVE = '#ed6c02';
 const COLOR_WIRE = '#1f1f1f';
@@ -269,8 +267,8 @@ export function QuantumCircuitView({
               sx={{ textTransform: 'none' }}
             >
               {order === 'msq'
-                ? `↕ |x${sub(n - 1)}⟩→|x₀⟩`
-                : `↕ |x₀⟩→|x${sub(n - 1)}⟩`}
+                ? `↕ |x${subscript(n - 1)}⟩→|x₀⟩`
+                : `↕ |x₀⟩→|x${subscript(n - 1)}⟩`}
             </ToggleButton>
           </span>
         </Tooltip>

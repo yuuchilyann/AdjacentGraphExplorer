@@ -19,8 +19,10 @@
 - 每段 α_k 獨立 mapping，點/拖互動沿用 PermutationBuilder 的政策（含
   silent-snap、d ≥ 2 合法但會自動觸發分層）
 - 表頭顯示 |X_k⟩；段中央顯示 α_k（完成時轉綠）
-- 每段 cycle decomposition + 合成 α_total cycle 顯示
-- 全部段完成後嵌入 `LayeredView` 顯示**合成 α_total** 的層級實現
+- 每段 cycle decomposition + 合成 α_total cycle 顯示；「二進位｜十進位」
+  切換同時作用於所有 α_k 與 α_total（詳見 §三.7）
+- 全部段完成後嵌入 `LayeredView` 顯示層級實現，可切換「合成直接分解｜逐段
+  串接」；逐段串接會在 wiring 圖與量子電路圖框出每段 α_k 的層範圍（詳見 §三.8）
 - 全部隨機合法 / 全部隨機任意 / 全部清除 + SVG export
 - 「補滿 self-loop」按鈕（全段）：一鍵把每段剩餘未連、且自身目標仍空的
   來源補成 |x⟩→|x⟩，保留各段已連的邊（詳見 §三.6）
@@ -99,6 +101,55 @@ Walk-aware），可獨立調整每段視覺策略。
   覆寫成完整 identity；本功能只補剩餘、不動已連邊。
 - disable + Tooltip（per [[feedback-disable-inactive-controls]]）：無候選時
   變灰，Tooltip 分「已完整」與「剩餘來源自身目標被佔用無法自動補」兩種。
+
+### 7. ✅ Cycle 表示「二進位｜十進位」切換（已實作 2026-11-14）
+
+**實作位置**：`PermutationChain.tsx` — `ketBase` state；cycle 區塊上方新增
+「Cycle 表示」標題列，切換鈕在右側（與 Permutation Builder 版面一致）。
+
+- 一顆切換同時作用於每段 α_k 與合成 α_total，確保所有 cycle 用同一種 ket
+  寫法（\|101⟩ ↔ \|5⟩）。
+- 格式化集中在 `permutation.ts` 的 `formatKet` / `formatCycles`（新增
+  `KetBase` 參數，預設 `'binary'`），Builder 與 Chain 共用。
+- 所有段都是 identity（畫面上沒有任何 ket）時 disabled + Tooltip。
+- 用語採台灣慣用的「進位」（二進位、十進位），不用中國大陸的「進制」。
+
+### 8. ✅「合成直接分解｜逐段串接」與 α_k 範圍框選（已實作 2026-11-14）
+
+**動機**：使用者反映在合成的 wiring 圖上看不出 α₁、α₂ 各對應哪幾層。
+
+**為什麼「合成直接分解」框不出來**：它把 α_total 當成全新的排列重新分解，
+中間過程不經過 \|X_k⟩，層與 α_k 之間沒有對應關係——範圍根本不存在，不是
+算不出來。例（n = 2）：α₁ = (\|00⟩ \|01⟩)(\|10⟩ \|11⟩)、
+α₂ = (\|00⟩ \|10⟩)(\|01⟩ \|11⟩)，α_total = (\|00⟩ \|11⟩)(\|01⟩ \|10⟩)，
+直接分解 6 層，找不到任何切點使前段等於 α₁。
+
+**逐段串接**：`layered.ts` 的 `realizeChain(stages, …)` 把每段各自分解後依序
+接起來，回傳 `segments`（每段的層範圍 `[start, end)`）。最終排列與直接分解
+相同、同樣通過 runtime verification，只有路線與層數不同。
+
+**兩者沒有誰是誰的最佳化**：層數多寡視例子而定——
+
+| 例子 | 直接分解 | 逐段串接 |
+|---|---|---|
+| 上例 | 6 層 | 4 層 |
+| α₁ = α₂（互相抵消） | 0 層 | 4 層 |
+
+真正的最佳化是 Reduced / Walk-aware（固定針對同一種分解，只減不增）。
+
+**呈現**：
+- Chain 的 Layered Realization 標題列加入 ToggleButtonGroup（純文字），
+  逐段串接時傳 `stages={mappings}` 給 `LayeredView`。
+- Wiring 圖：每段一個彩色框，上方標「α1 · L1–L2」；框只包「該段的轉換＋
+  它產生的欄 L_{start+1}…L_end」，起始欄歸前一框，兩框留 8px 間距。
+  欄名 Lk 是「第 k 層做完後的狀態」，所以框內欄名恰等於標籤範圍。
+- 狀態欄下方標出對應的 Chain 欄 \|X₁⟩、\|X₂⟩…；0 層的段起訖同一欄，標成
+  「\|X₂⟩=\|X₃⟩」，並在間隙畫虛線。
+- 量子電路圖（`QuantumCircuitView` 的 `segments` prop）同樣框出各段 gate。
+- 播放時目前所在段的框轉橘色，步驟文字附「· α2」；分解文字分段列出。
+
+**Reduced 只在段內消去**：跨段消去可能把相鄰兩段的層互相抵掉，段界就消失、
+框選失去意義。
 
 ### 4. 「隨機合法 / 隨機任意」改為 SplitButton
 

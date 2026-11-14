@@ -131,6 +131,7 @@ wire、q=n−1 是頂部，時間軸由左至右。Wiring diagram 與 quantum ci
 |---|---|
 | Adjacent Bipartite Graph | hover 左欄高亮 outgoing 合法邊；hover 右欄高亮 incoming；切換 self-loop |
 | Permutation Builder | 點兩下 / 拖曳連線；藍邊 = legal、橙邊 = 需要分層、紅 = 衝突 silent-snap；即時 cycle 表示與雙行（Cauchy）表示法，可切換**二進位 ↔ 十進位** ket（\|101⟩ ↔ \|5⟩，兩者同步）；排列矩陣 P_α 可切換加注 ↔ 標準 |
+| Permutation Chain | \|X₁⟩ → \|X₂⟩ → ⋯ 多段連連看，每段 α_k 獨立連線；各段與合成 α_total 的 cycle 表示可切換二進位 ↔ 十進位；Layered Realization 可切換**合成直接分解 ↔ 逐段串接**，逐段串接時在 wiring 圖與量子電路圖框出每段 α_k 的層範圍（如「α1 · L1–L2」）並標出 \|X_k⟩（詳見 [docs/PERMUTATION_CHAIN.md](docs/PERMUTATION_CHAIN.md)） |
 | Layered Realization | 多欄 wiring 圖；每條 strand 一個色；step prev/next/play/pause；Top-down ↔ Bottom-up 切換（Gray-path 走法）；Original ↔ Reduced 切換（peephole 化簡）；Walk-aware modifier（命中時亮 chip）；runtime verification chip；折疊式「學習資訊」面板含 KaTeX 排版的六段定理與公式 |
 | Quantum Circuit | MSQ 配置（\|x₀⟩ 在最下）↔ Qiskit 順序（\|x₀⟩ 在最上，同 Colab）↕ 單鍵切換；Qiskit 風格實心 `⊕` target；layer → 多控 X gate；Mixed control ↔ Positive-only 切換；active gate 與 wiring 同步 highlight |
 

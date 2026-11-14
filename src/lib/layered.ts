@@ -70,6 +70,49 @@ function applySwap(value: number, layer: LayerStep): number {
   return value;
 }
 
+/**
+ * Run every row through `layers` and self-check the result: each layer must be
+ * legal (d ≤ 1) and each row must end at `expected(row)`. Shared by
+ * `realizeLayered`, `reduceRealization`, and `realizeChain`.
+ */
+function traceAndVerify(
+  layers: LayerStep[],
+  total: number,
+  expected: (row: number) => number,
+): Pick<LayeredRealization, 'trajectories' | 'movedRows' | 'verification'> {
+  const trajectories: number[][] = [];
+  const movedRows = new Set<number>();
+  for (let r = 0; r < total; r++) {
+    const traj = [r];
+    let v = r;
+    for (const layer of layers) {
+      v = applySwap(v, layer);
+      traj.push(v);
+    }
+    trajectories.push(traj);
+    if (traj[traj.length - 1] !== r) movedRows.add(r);
+  }
+
+  const verification: Verification = { ok: true, mismatches: [], illegalLayers: [] };
+  for (let idx = 0; idx < layers.length; idx++) {
+    const layer = layers[idx]!;
+    const d = hammingDistance(layer.swap[0], layer.swap[1]);
+    if (d > 1) {
+      verification.illegalLayers.push({ index: idx, swap: layer.swap, d });
+    }
+  }
+  for (let r = 0; r < total; r++) {
+    const exp = expected(r);
+    const actual = trajectories[r]![trajectories[r]!.length - 1]!;
+    if (exp !== actual) {
+      verification.mismatches.push({ source: r, expected: exp, actual });
+    }
+  }
+  verification.ok =
+    verification.mismatches.length === 0 && verification.illegalLayers.length === 0;
+  return { trajectories, movedRows, verification };
+}
+
 /** Bit indices set in mask, ascending (bit 0 first). */
 function bitsAscending(mask: number): number[] {
   const out: number[] = [];
@@ -256,38 +299,12 @@ export function realizeLayered(
     }
   }
 
-  // Build trajectories
-  const trajectories: number[][] = [];
-  const movedRows = new Set<number>();
-  for (let r = 0; r < total; r++) {
-    const traj = [r];
-    let v = r;
-    for (const layer of layers) {
-      v = applySwap(v, layer);
-      traj.push(v);
-    }
-    trajectories.push(traj);
-    if (traj[traj.length - 1] !== r) movedRows.add(r);
-  }
-
-  // Runtime self-check.
-  const verification: Verification = { ok: true, mismatches: [], illegalLayers: [] };
-  for (let idx = 0; idx < layers.length; idx++) {
-    const layer = layers[idx]!;
-    const d = hammingDistance(layer.swap[0], layer.swap[1]);
-    if (d > 1) {
-      verification.illegalLayers.push({ index: idx, swap: layer.swap, d });
-    }
-  }
-  for (let r = 0; r < total; r++) {
-    const expected = mapping.has(r) ? mapping.get(r)! : r;
-    const actual = trajectories[r]![trajectories[r]!.length - 1]!;
-    if (expected !== actual) {
-      verification.mismatches.push({ source: r, expected, actual });
-    }
-  }
-  verification.ok =
-    verification.mismatches.length === 0 && verification.illegalLayers.length === 0;
+  // Build trajectories + runtime self-check.
+  const { trajectories, movedRows, verification } = traceAndVerify(
+    layers,
+    total,
+    (r) => (mapping.has(r) ? mapping.get(r)! : r),
+  );
 
   return {
     strategy,
@@ -370,38 +387,13 @@ export function reduceRealization(real: LayeredRealization): LayeredRealization 
   const reducedLayers = simplifyLayers(real.layers);
   const total = real.trajectories.length;
 
-  const trajectories: number[][] = [];
-  const movedRows = new Set<number>();
-  for (let r = 0; r < total; r++) {
-    const traj = [r];
-    let v = r;
-    for (const layer of reducedLayers) {
-      v = applySwap(v, layer);
-      traj.push(v);
-    }
-    trajectories.push(traj);
-    if (traj[traj.length - 1] !== r) movedRows.add(r);
-  }
-
-  const verification: Verification = { ok: true, mismatches: [], illegalLayers: [] };
-  for (let idx = 0; idx < reducedLayers.length; idx++) {
-    const layer = reducedLayers[idx]!;
-    const d = hammingDistance(layer.swap[0], layer.swap[1]);
-    if (d > 1) {
-      verification.illegalLayers.push({ index: idx, swap: layer.swap, d });
-    }
-  }
   // Endpoints must still agree with the canonical realization — cancellation
   // of involution pairs preserves the overall permutation.
-  for (let r = 0; r < total; r++) {
-    const expected = real.trajectories[r]![real.trajectories[r]!.length - 1]!;
-    const actual = trajectories[r]![trajectories[r]!.length - 1]!;
-    if (expected !== actual) {
-      verification.mismatches.push({ source: r, expected, actual });
-    }
-  }
-  verification.ok =
-    verification.mismatches.length === 0 && verification.illegalLayers.length === 0;
+  const { trajectories, movedRows, verification } = traceAndVerify(
+    reducedLayers,
+    total,
+    (r) => real.trajectories[r]![real.trajectories[r]!.length - 1]!,
+  );
 
   return {
     strategy: real.strategy,
@@ -417,6 +409,88 @@ export function reduceRealization(real: LayeredRealization): LayeredRealization 
     totalCycles: real.totalCycles,
     usedGrayPath: real.usedGrayPath,
   };
+}
+
+/** Layer range of one chain stage: layers[start .. end-1] (0-based, end exclusive). */
+export type ChainSegment = { start: number; end: number };
+
+/** Outline colours for chain stages α₁, α₂, … (cycled). */
+export const SEGMENT_COLORS = ['#1976d2', '#9c27b0', '#2e7d32', '#00838f', '#c2185b', '#6d4c41'];
+
+/** 1-based layer range label of a segment: "L1–L3", "L4", or null when empty. */
+export function segmentRangeLabel(seg: ChainSegment): string | null {
+  if (seg.end === seg.start) return null;
+  if (seg.end - seg.start === 1) return `L${seg.end}`;
+  return `L${seg.start + 1}–L${seg.end}`;
+}
+
+/** Index of the segment containing 1-based playback step `step`, or -1. */
+export function segmentOfStep(segments: ChainSegment[], step: number): number {
+  return segments.findIndex((s) => step > s.start && step <= s.end);
+}
+
+/**
+ * Realize a chain α_total = α_L ∘ … ∘ α_1 stage by stage: decompose each α_k
+ * on its own and concatenate the layers in temporal order (α_1 first).
+ *
+ * Unlike `realizeLayered(α_total)`, every layer here belongs to exactly one
+ * stage, so `segments[k]` is the exact layer range of α_{k+1} and the state
+ * between two segments equals the chain's intermediate column |X_{k+1}⟩.
+ * The final permutation is identical to the direct decomposition; only the
+ * path and the layer count differ.
+ *
+ * `reduced` runs the peephole reduction *inside each stage only* — reducing
+ * across a stage boundary could cancel layers from two different stages and
+ * erase the boundary.
+ */
+export function realizeChain(
+  stages: Mapping[],
+  n: number,
+  strategy: Strategy,
+  walkAware: boolean,
+  reduced: boolean,
+): { realization: LayeredRealization; segments: ChainSegment[] } {
+  const total = 1 << n;
+  const parts = stages.map((m) => {
+    const r = realizeLayered(m, n, strategy, walkAware);
+    return reduced ? reduceRealization(r) : r;
+  });
+
+  const layers: LayerStep[] = [];
+  const segments: ChainSegment[] = [];
+  for (const p of parts) {
+    const start = layers.length;
+    layers.push(...p.layers);
+    segments.push({ start, end: layers.length });
+  }
+
+  // Expected endpoint: push each row through every stage mapping in order.
+  const expected = (r: number) => {
+    let v = r;
+    for (const m of stages) v = m.has(v) ? m.get(v)! : v;
+    return v;
+  };
+  const { trajectories, movedRows, verification } = traceAndVerify(
+    layers,
+    total,
+    expected,
+  );
+
+  const realization: LayeredRealization = {
+    strategy,
+    layers,
+    trajectories,
+    movedRows,
+    alreadyLegal: parts.every((p) => p.alreadyLegal),
+    maxDirectDistance: Math.max(0, ...parts.map((p) => p.maxDirectDistance)),
+    unsupported: parts.flatMap((p) => p.unsupported),
+    verification,
+    walkAware,
+    walkDecomposedCycles: parts.reduce((s, p) => s + p.walkDecomposedCycles, 0),
+    totalCycles: parts.reduce((s, p) => s + p.totalCycles, 0),
+    usedGrayPath: parts.some((p) => p.usedGrayPath),
+  };
+  return { realization, segments };
 }
 
 export function formatSwap(layer: LayerStep, n: number): string {

@@ -297,14 +297,25 @@ export const en = {
   'chain.perStage.label': 'Show per-stage decomposition',
   'chain.perStage.title': (p: TParams) => (
     <>
-      Layered Realization of α<sub>{String(p.k)}</sub>
+      Layered Realization of <span style={{ textTransform: 'none' }}>α<sub>{String(p.k)}</sub></span>
     </>
   ),
   'chain.composite.layeredTitle': (
     <>
-      Layered Realization of the composite α<sub>total</sub>
+      Layered Realization of the composite <span style={{ textTransform: 'none' }}>α<sub>total</sub></span>
     </>
   ),
+  'chain.concat.layeredTitle': (
+    <>
+      Layered Realization of <span style={{ textTransform: 'none' }}>α<sub>1</sub> → α<sub>2</sub> → …</span> concatenated stage by stage
+    </>
+  ),
+  'chain.layeredMode.direct': 'Direct composite',
+  'chain.layeredMode.concat': 'Stage by stage',
+  'chain.layeredMode.tooltip.direct':
+    'Decompose the composite α_total as a fresh permutation. The path does not pass through the intermediate columns |X_k⟩, so the stages cannot be outlined.',
+  'chain.layeredMode.tooltip.concat':
+    'Decompose α₁, α₂, … one at a time and concatenate them, outlining each stage’s layer range. The final result equals the direct decomposition; the layer count may be higher or lower. Reduced only cancels within each stage.',
 
   // ── permutation builder view ──
   'builder.title': 'Permutation Builder — matching game',
@@ -433,6 +444,9 @@ export const en = {
     'No cycle in this permutation is a Hamming walk; walk-aware gives no benefit for this case (this is normal).',
   'layered.reverse.tooltip.desc':
     'Currently: |11⟩→|00⟩ (top-to-bottom descending). Click to switch back to ascending.',
+  'layered.segment.empty': 'no layers (identity)',
+  'layered.segments.note':
+    'Boxes mark the layer range of each stage α (also on the Quantum Circuit). A column named Lk is the state after layer k; the |X_k⟩ below a column matches the Permutation Chain column of the same name — the last column of each box is both that stage’s result and the next stage’s starting point.',
   'layered.reverse.tooltip.asc':
     'Currently: |00⟩→|11⟩ (top-to-bottom ascending). Click to switch to descending order.',
   'layered.unsupported': (p: TParams) =>

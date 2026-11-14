@@ -297,14 +297,25 @@ export const zh = {
   'chain.perStage.label': '顯示各段分解',
   'chain.perStage.title': (p: TParams) => (
     <>
-      α<sub>{String(p.k)}</sub> 的 Layered Realization
+      <span style={{ textTransform: 'none' }}>α<sub>{String(p.k)}</sub></span> 的 Layered Realization
     </>
   ),
   'chain.composite.layeredTitle': (
     <>
-      合成 α<sub>total</sub> 的 Layered Realization
+      合成 <span style={{ textTransform: 'none' }}>α<sub>total</sub></span> 的 Layered Realization
     </>
   ),
+  'chain.concat.layeredTitle': (
+    <>
+      逐段串接 <span style={{ textTransform: 'none' }}>α<sub>1</sub> → α<sub>2</sub> → …</span> 的 Layered Realization
+    </>
+  ),
+  'chain.layeredMode.direct': '合成直接分解',
+  'chain.layeredMode.concat': '逐段串接',
+  'chain.layeredMode.tooltip.direct':
+    '把合成後的 α_total 當成新的排列直接分解。中間過程不經過各欄 |X_k⟩，因此無法標出各段 α 的範圍。',
+  'chain.layeredMode.tooltip.concat':
+    '依序把 α₁、α₂ … 各自分解後串接，並框出每段 α 對應的層範圍。最終結果與直接分解相同，層數可能較多或較少；Reduced 只在各段內部消去。',
 
   // ── permutation builder view ──
   'builder.title': 'Permutation Builder — 連連看',
@@ -429,6 +440,9 @@ export const zh = {
     '此排列中沒有任一 cycle 是 Hamming walk；walk-aware 對此 case 沒有效益（屬於正常情況）。',
   'layered.reverse.tooltip.desc':
     '目前：|11⟩→|00⟩（由上而下遞減）。點擊切回遞增。',
+  'layered.segment.empty': '無層（identity）',
+  'layered.segments.note':
+    '框線標示每段 α 對應的層範圍（Quantum Circuit 亦同）。欄名 Lk 表示「第 k 層做完後的狀態」；欄下方的 |X_k⟩ 對應 Permutation Chain 的同名欄——每個框的最後一欄既是該段的結果，也是下一段的起點。',
   'layered.reverse.tooltip.asc':
     '目前：|00⟩→|11⟩（由上而下遞增）。點擊切換為遞減排列。',
   'layered.unsupported': (p: TParams) =>

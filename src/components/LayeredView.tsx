@@ -24,8 +24,12 @@ import Chip from '@mui/material/Chip';
 import type { Mapping } from '../lib/permutation';
 import {
   formatSwap,
+  realizeChain,
   realizeLayered,
   reduceRealization,
+  segmentOfStep,
+  segmentRangeLabel,
+  SEGMENT_COLORS,
   type Strategy,
 } from '../lib/layered';
 import { QuantumCircuitView } from './QuantumCircuitView';
@@ -45,6 +49,13 @@ export type LayeredViewProps = {
    * repeat the same content over and over.
    */
   showLearningPanel?: boolean;
+  /**
+   * Chain stages α₁..α_L. When given, the realization is built stage by stage
+   * (`realizeChain`) instead of decomposing `mapping` directly, and each
+   * stage's layer range is outlined on the wiring diagram and the circuit.
+   * `mapping` must then be the composite of these stages.
+   */
+  stages?: Mapping[];
 };
 
 const COLOR_ACTIVE = '#ed6c02';
@@ -63,25 +74,46 @@ export function LayeredView({
   mapping,
   n,
   showLearningPanel = true,
+  stages,
 }: LayeredViewProps) {
   const { t, tStr } = useI18n();
   const [strategy, setStrategy] = useState<Strategy>('above');
   const [reduced, setReduced] = useState(false);
   const [walkAware, setWalkAware] = useState(false);
   const [reversedRows, setReversedRows] = useState(false);
+  // Chain mode: stage-by-stage realization. `reduced` is applied inside each
+  // stage only, so the stage boundaries (segments) survive the reduction.
+  const chainCanonical = useMemo(
+    () => (stages ? realizeChain(stages, n, strategy, walkAware, false) : null),
+    [stages, n, strategy, walkAware],
+  );
+  const chainFinal = useMemo(
+    () =>
+      stages && reduced
+        ? realizeChain(stages, n, strategy, walkAware, true)
+        : chainCanonical,
+    [stages, n, strategy, walkAware, reduced, chainCanonical],
+  );
+  const segments = chainFinal?.segments ?? null;
   const canonical = useMemo(
-    () => realizeLayered(mapping, n, strategy, walkAware),
-    [mapping, n, strategy, walkAware],
+    () => chainCanonical?.realization ?? realizeLayered(mapping, n, strategy, walkAware),
+    [chainCanonical, mapping, n, strategy, walkAware],
   );
   const realization = useMemo(
-    () => (reduced ? reduceRealization(canonical) : canonical),
-    [canonical, reduced],
+    () =>
+      chainFinal?.realization ?? (reduced ? reduceRealization(canonical) : canonical),
+    [chainFinal, canonical, reduced],
   );
   // Anchor-only baseline for the saved-layers indicator (always computed
   // even when walkAware is on, so the chip can show "saved Δ layers").
   const anchorBaseline = useMemo(
-    () => (walkAware ? realizeLayered(mapping, n, strategy, false) : canonical),
-    [mapping, n, strategy, walkAware, canonical],
+    () =>
+      walkAware
+        ? stages
+          ? realizeChain(stages, n, strategy, false, false).realization
+          : realizeLayered(mapping, n, strategy, false)
+        : canonical,
+    [stages, mapping, n, strategy, walkAware, canonical],
   );
   const cancelledPairs = (canonical.layers.length - realization.layers.length) / 2;
   const walkSavedLayers = walkAware
@@ -140,17 +172,37 @@ export function LayeredView({
   const colGap = total <= 8 ? 130 : 100;
   const padX = 40;
   const padY = 30;
+  // Chain mode reserves a band above the column headers for the α_k labels.
+  const segBandH = segments ? 34 : 0;
+  const padTop = padY + segBandH;
 
   const colLeftX = (c: number) => padX + c * (labelW + colGap);
   const colRightX = (c: number) => colLeftX(c) + labelW;
   const colCenterX = (c: number) => colLeftX(c) + labelW / 2;
   const yFor = (i: number) =>
-    padY + rowHeight / 2 + (reversedRows ? total - 1 - i : i) * rowHeight;
+    padTop + rowHeight / 2 + (reversedRows ? total - 1 - i : i) * rowHeight;
   const totalW = padX * 2 + totalCols * labelW + (totalCols - 1) * colGap;
-  const totalH = padY * 2 + total * rowHeight;
+  // Chain mode also adds a little room below for the |X_k⟩ column names.
+  const totalH = padTop + padY + (segments ? 8 : 0) + total * rowHeight;
 
   const ket = (i: number) =>
     n === 0 ? '|⟩' : `|${i.toString(2).padStart(n, '0')}⟩`;
+
+  // Chain mode: which Permutation Chain column |X_k⟩ each state column equals.
+  // Column 0 is |X₁⟩ and stage α_k ends on |X_{k+1}⟩. An empty (identity)
+  // stage ends where it starts, so one column can carry two names (|X₂⟩=|X₃⟩).
+  const subDigits = (k: number) =>
+    String(k).replace(/\d/g, (d) => '₀₁₂₃₄₅₆₇₈₉'[Number(d)]!);
+  const chainStateLabel = new Map<number, string[]>();
+  if (segments) {
+    const add = (col: number, k: number) =>
+      chainStateLabel.set(col, [
+        ...(chainStateLabel.get(col) ?? []),
+        `|X${subDigits(k)}⟩`,
+      ]);
+    add(0, 1);
+    segments.forEach((s, k) => add(s.end, k + 2));
+  }
 
   /** Status of the layer/transition between cols c and c+1 (1-indexed = c+1). */
   const transitionStatus = (c: number): 'past' | 'active' | 'future' => {
@@ -445,6 +497,21 @@ export function LayeredView({
                   >
                     {formatSwap(realization.layers[step - 1]!, n)}
                   </Box>
+                  {segments && segmentOfStep(segments, step) >= 0 && (
+                    <Box
+                      component="span"
+                      sx={{
+                        ml: 1,
+                        fontWeight: 600,
+                        color:
+                          SEGMENT_COLORS[
+                            segmentOfStep(segments, step) % SEGMENT_COLORS.length
+                          ],
+                      }}
+                    >
+                      · α{segmentOfStep(segments, step) + 1}
+                    </Box>
+                  )}
                 </>
               )}
             </Typography>
@@ -452,7 +519,7 @@ export function LayeredView({
 
           <SvgViewport
             svgRef={svgRef}
-            filename={`layered-realization-n${n}-${strategy}${walkAware ? '-walk' : ''}${reduced ? '-reduced' : ''}`}
+            filename={`layered-realization-n${n}-${strategy}${walkAware ? '-walk' : ''}${reduced ? '-reduced' : ''}${segments ? '-chain' : ''}`}
           >
             <svg
               ref={svgRef}
@@ -462,6 +529,73 @@ export function LayeredView({
               style={{ display: 'block', margin: '0 auto' }}
               onMouseLeave={() => setHoverStrand(null)}
             >
+              {/* Chain stages: outline each α_k's layer range. A box covers the
+                  stage's transitions plus the columns they produce
+                  (L_{start+1} … L_end), so the column labels inside a box are
+                  exactly its "L1–L2" range. The column before the stage
+                  (state |X_k⟩) belongs to the previous box, which leaves a
+                  visible gap between neighbouring boxes. An empty (identity)
+                  stage has no layers: it is a dashed marker in that gap. */}
+              {segments?.map((seg, k) => {
+                const empty = seg.start === seg.end;
+                const x1 = colRightX(seg.start) + 14;
+                const x2 = colRightX(seg.end) + 6;
+                const xMarker = colRightX(seg.start) + 10;
+                const isActive = step > seg.start && step <= seg.end;
+                const color = isActive
+                  ? COLOR_ACTIVE
+                  : SEGMENT_COLORS[k % SEGMENT_COLORS.length]!;
+                const range = segmentRangeLabel(seg);
+                const boxTop = padY - 4;
+                const boxBottom = padTop + total * rowHeight + 8;
+                return (
+                  <g key={`seg-${k}`} style={{ pointerEvents: 'none' }}>
+                    {empty ? (
+                      <line
+                        x1={xMarker}
+                        y1={boxTop}
+                        x2={xMarker}
+                        y2={boxBottom}
+                        stroke={color}
+                        strokeOpacity={0.7}
+                        strokeWidth={1.4}
+                        strokeDasharray="4 3"
+                      />
+                    ) : (
+                      <rect
+                        x={x1}
+                        y={boxTop}
+                        width={x2 - x1}
+                        height={boxBottom - boxTop}
+                        fill={color}
+                        fillOpacity={0.06}
+                        stroke={color}
+                        strokeOpacity={0.7}
+                        strokeWidth={isActive ? 2 : 1.4}
+                        rx={8}
+                      />
+                    )}
+                    <text
+                      x={empty ? xMarker : (x1 + x2) / 2}
+                      y={boxTop - 8}
+                      // An empty last stage's marker sits past the final column,
+                      // next to the SVG edge; anchor its label inward so it isn't clipped.
+                      textAnchor={
+                        empty && seg.start >= totalCols - 1 ? 'end' : 'middle'
+                      }
+                      fontSize={12}
+                      fontWeight={700}
+                      fill={color}
+                    >
+                      α{k + 1}
+                      <tspan fontWeight={500}>
+                        {range ? ` · ${range}` : ` · ${tStr('layered.segment.empty')}`}
+                      </tspan>
+                    </text>
+                  </g>
+                );
+              })}
+
               {/* Column track backgrounds + |i⟩ labels (fixed reference frame) */}
               {Array.from({ length: totalCols }, (_, c) => c).map((c) => {
                 const isCurrent = c === step;
@@ -470,7 +604,7 @@ export function LayeredView({
                     {/* track background */}
                     <rect
                       x={colLeftX(c)}
-                      y={padY}
+                      y={padTop}
                       width={labelW}
                       height={total * rowHeight}
                       fill={isCurrent ? 'rgba(237,108,2,0.06)' : COLOR_TRACK_BG}
@@ -479,7 +613,7 @@ export function LayeredView({
                     {/* column header */}
                     <text
                       x={colCenterX(c)}
-                      y={padY - 10}
+                      y={padTop - 10}
                       textAnchor="middle"
                       fontSize={11}
                       fill={isCurrent ? COLOR_ACTIVE : '#666'}
@@ -511,6 +645,21 @@ export function LayeredView({
                         </text>
                       );
                     })}
+                    {/* Chain mode: name the state columns after the Permutation
+                        Chain's |X_k⟩ columns, just below the stage boxes. */}
+                    {chainStateLabel.has(c) && (
+                      <text
+                        x={colCenterX(c)}
+                        y={padTop + total * rowHeight + 24}
+                        textAnchor="middle"
+                        fontFamily="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+                        fontSize={12}
+                        fontWeight={700}
+                        fill="#555"
+                      >
+                        {chainStateLabel.get(c)!.join('=')}
+                      </text>
+                    )}
                   </g>
                 );
               })}
@@ -681,16 +830,37 @@ export function LayeredView({
                   'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
               }}
             >
-              {realization.layers
-                .map((l) => formatSwap(l, n))
-                .join(' ∘ ')}
+              {segments
+                ? segments
+                    .map(
+                      (s, k) =>
+                        `α${k + 1}: ${
+                          realization.layers
+                            .slice(s.start, s.end)
+                            .map((l) => formatSwap(l, n))
+                            .join(' ∘ ') || 'identity'
+                        }`,
+                    )
+                    .join('  ｜  ')
+                : realization.layers.map((l) => formatSwap(l, n)).join(' ∘ ')}
             </Box>
           </Typography>
+
+          {segments && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: 'block', mt: 0.5 }}
+            >
+              {t('layered.segments.note')}
+            </Typography>
+          )}
 
           <QuantumCircuitView
             realization={realization}
             n={n}
             step={step}
+            segments={segments}
           />
 
           <ElementaryRowMatrixPanel

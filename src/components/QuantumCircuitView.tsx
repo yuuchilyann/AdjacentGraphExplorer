@@ -14,7 +14,12 @@ import {
   Typography,
 } from '@mui/material';
 
-import type { LayeredRealization } from '../lib/layered';
+import {
+  segmentRangeLabel,
+  SEGMENT_COLORS,
+  type ChainSegment,
+  type LayeredRealization,
+} from '../lib/layered';
 import {
   buildIpynb,
   buildQiskitCode,
@@ -32,6 +37,11 @@ export type QuantumCircuitViewProps = {
   n: number;
   /** 0 = before any layer applied; k = after layer k applied. */
   step: number;
+  /**
+   * Chain mode: layer range of each stage α_k. Gate k is layer k, so the same
+   * ranges outline α₁, α₂, … on the circuit. Omitted/null outside chain mode.
+   */
+  segments?: ChainSegment[] | null;
 };
 
 type Mode = 'mixed' | 'positive';
@@ -93,6 +103,7 @@ export function QuantumCircuitView({
   realization,
   n,
   step,
+  segments = null,
 }: QuantumCircuitViewProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const { t, lang } = useI18n();
@@ -116,6 +127,8 @@ export function QuantumCircuitView({
   // Layout — MSQ (least-significant qubit at the BOTTOM).
   const rowH = 44;
   const padY = 36;
+  // Chain mode reserves a band above the layer labels for the α_k labels.
+  const padTop = padY + (segments ? 26 : 0);
   const slotW = 56;
   const slotsPerGate = mode === 'positive' ? 3 : 1;
   const endPadX = 60; // tail wire after the last gate
@@ -127,13 +140,13 @@ export function QuantumCircuitView({
   const labelGutter = 60; // room for `|x_k⟩` (textAnchor="end")
   const startX = padX + labelGutter;
 
-  const totalH = padY * 2 + n * rowH;
+  const totalH = padTop + padY + n * rowH;
   const totalW = startX + gates.length * slotsPerGate * slotW + endPadX;
 
   // q is the qubit index; MSQ means q=0 sits at the BOTTOM, Qiskit order
   // puts q=0 at the TOP.
   const yForQ = (q: number) =>
-    padY + (order === 'msq' ? n - 1 - q : q) * rowH + rowH / 2;
+    padTop + (order === 'msq' ? n - 1 - q : q) * rowH + rowH / 2;
 
   // x position of a specific slot within a layer.
   //  - mixed mode: slot is always 0 (the gate)
@@ -337,7 +350,7 @@ export function QuantumCircuitView({
         svgRef={svgRef}
         filename={`quantum-circuit-n${n}-${realization.strategy}-${mode}${
           order === 'qiskit' ? '-q0top' : ''
-        }`}
+        }${segments ? '-chain' : ''}`}
       >
         <svg
           ref={svgRef}
@@ -395,6 +408,52 @@ export function QuantumCircuitView({
                 />
               );
             })}
+          {/* Chain stages: outline each α_k's gate range (empty stages have
+              no gates, so nothing to outline). */}
+          {segments?.map((seg, k) => {
+            if (seg.start === seg.end) return null;
+            // Inset 4 px on each side → an 8 px gap between neighbouring stages
+            // (same spacing as the wiring diagram).
+            const x1 = xLayerLeft(seg.start) + 4;
+            const x2 = xLayerRight(seg.end - 1) - 4;
+            const isActive = showPlayhead && step > seg.start && step <= seg.end;
+            const color = isActive
+              ? COLOR_ACTIVE
+              : SEGMENT_COLORS[k % SEGMENT_COLORS.length]!;
+            const range = segmentRangeLabel(seg);
+            const boxTop = padY - 12;
+            return (
+              <g key={`seg-${k}`}>
+                <rect
+                  x={x1}
+                  y={boxTop}
+                  width={x2 - x1}
+                  height={padTop + n * rowH + 8 - boxTop}
+                  fill={color}
+                  fillOpacity={0.05}
+                  stroke={color}
+                  strokeOpacity={0.7}
+                  strokeWidth={isActive ? 2 : 1.4}
+                  rx={8}
+                />
+                <text
+                  x={(x1 + x2) / 2}
+                  y={boxTop - 7}
+                  textAnchor="middle"
+                  fontSize={12}
+                  fontWeight={700}
+                  fill={color}
+                >
+                  α{k + 1}
+                  {/* Narrow (1-gate) boxes only get the α label. */}
+                  {x2 - x1 >= 90 && range && (
+                    <tspan fontWeight={500}>{` · ${range}`}</tspan>
+                  )}
+                </text>
+              </g>
+            );
+          })}
+
           {/* Gates */}
           {gates.map((g, k) => {
             const status = gateStatus(k);
@@ -415,9 +474,9 @@ export function QuantumCircuitView({
                 {showPlayhead && status === 'active' && (
                   <rect
                     x={xLayerLeft(k) + 4}
-                    y={padY - 6}
+                    y={padTop - 6}
                     width={xLayerRight(k) - xLayerLeft(k) - 8}
-                    height={totalH - padY * 2 + 12}
+                    height={n * rowH + 12}
                     fill="rgba(237,108,2,0.08)"
                     rx={6}
                   />
@@ -426,7 +485,7 @@ export function QuantumCircuitView({
                 {/* Layer label at top — over the gate column */}
                 <text
                   x={x}
-                  y={padY - 14}
+                  y={padTop - 14}
                   textAnchor="middle"
                   fontSize={11}
                   fontFamily="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"

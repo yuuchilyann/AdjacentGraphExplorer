@@ -83,6 +83,9 @@ export function PermutationChain({ n }: PermutationChainProps) {
   const [showPerStageLayered, setShowPerStageLayered] = useState(false);
   const [pathAware, setPathAware] = useState(false);
   const [ketBase, setKetBase] = useState<KetBase>('binary');
+  // How the composite is realized: decompose α_total directly, or concatenate
+  // each stage's own decomposition (which lets every α_k be outlined).
+  const [layeredMode, setLayeredMode] = useState<'direct' | 'concat'>('direct');
   const svgRef = useRef<SVGSVGElement>(null);
 
   // Reset whenever n changes.
@@ -1026,6 +1029,24 @@ export function PermutationChain({ n }: PermutationChainProps) {
             >
               Layered Realization
             </Typography>
+            <Tooltip
+              title={
+                layeredMode === 'direct'
+                  ? tStr('chain.layeredMode.tooltip.direct')
+                  : tStr('chain.layeredMode.tooltip.concat')
+              }
+            >
+              <ToggleButtonGroup
+                value={layeredMode}
+                exclusive
+                size="small"
+                color="primary"
+                onChange={(_, v: 'direct' | 'concat' | null) => v && setLayeredMode(v)}
+              >
+                <ToggleButton value="direct">{t('chain.layeredMode.direct')}</ToggleButton>
+                <ToggleButton value="concat">{t('chain.layeredMode.concat')}</ToggleButton>
+              </ToggleButtonGroup>
+            </Tooltip>
             <Tooltip title={tStr('chain.perStage.tooltip')}>
               <FormControlLabel
                 sx={{ m: 0 }}
@@ -1067,9 +1088,15 @@ export function PermutationChain({ n }: PermutationChainProps) {
             color="text.secondary"
             sx={{ display: 'block', mb: 0.5 }}
           >
-            {t('chain.composite.layeredTitle')}
+            {layeredMode === 'concat'
+              ? t('chain.concat.layeredTitle')
+              : t('chain.composite.layeredTitle')}
           </Typography>
-          <LayeredView mapping={composite} n={n} />
+          <LayeredView
+            mapping={composite}
+            n={n}
+            stages={layeredMode === 'concat' ? mappings : undefined}
+          />
         </Box>
       )}
     </Paper>

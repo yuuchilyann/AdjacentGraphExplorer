@@ -9,6 +9,10 @@ Python。分兩種交付，對應不同抽象層級。
 
 - **電路圖**：SVG 視圖。「播放位置高亮」開關可關閉橘色 playhead，讓「複製為 PNG」
   得到標準電路圖（off 時連 active gate 橘色、未來段虛線一併隱藏）。
+  - **↕ Qubit 順序**：預設 MSQ（\|x₀⟩ 在最下）；按下切成 Qiskit 順序（\|x₀⟩ 在最上），
+    與 Colab 裡 `qc.draw("mpl")` 的圖上下方向一致，可直接並排比對。只改變 SVG 的繪製
+    方向，**不影響**匯出的程式碼（Qiskit 本身就以 q0 為 \|x₀⟩，兩邊 gate 完全相同）。
+  - target `⊕` 畫成實心圓 + 白色 +，仿 Qiskit mpl drawer 的樣式。
 - **Qiskit 程式碼**：`buildQiskitCode` 逐層輸出多控 X。
 - **Jupyter / Colab**：`buildQiskitNotebook` → 3 個 cell（安裝 / 電路 / `qc.draw("mpl")`）。
 

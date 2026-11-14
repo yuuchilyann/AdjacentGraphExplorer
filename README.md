@@ -11,7 +11,8 @@
    2-cycle，並以 wiring 圖呈現完整路線；可切換 **Original / Reduced**
    （involution 消去）與 **Walk-aware**（cycle 沿 Hamming walk 直走的條件式改寫）
 4. **Quantum Circuit** — 把每個 legal layer 轉譯為對應的 (n−1)-controlled
-   X gate，採 MSQ 配置；提供 Mixed control / Positive-only 切換
+   X gate，預設採 MSQ 配置（可切換為與 Colab 相同的 Qiskit 順序）；提供
+   Mixed control / Positive-only 切換
 
 ## 數學背景（簡述）
 
@@ -92,13 +93,25 @@ transposition 共用 Gray-path 端點時，邊界會產生**完全相同的 lega
 
 每個 legal layer (a b)（Hamming d = 1）對應一個 (n−1)-controlled X gate：
 
-- 差異位元 q\* = target qubit，畫成 `⊕`
+- 差異位元 q\* = target qubit，畫成 `⊕`（仿 Qiskit `qc.draw('mpl')` 的
+  畫法：gate 顏色的實心圓、內嵌白色 +）
 - 其餘 n−1 個位元為控制端；該位元在 a、b 中的共同值為 1 → **實心黑**
   positive control，為 0 → **空心白** negative control
 
-線路採 **MSQ** 配置（least-significant qubit 在最下方）：q=0 是底部那條
+線路預設採 **MSQ** 配置（least-significant qubit 在最下方）：q=0 是底部那條
 wire、q=n−1 是頂部，時間軸由左至右。Wiring diagram 與 quantum circuit
 共用 `step` 狀態，播放控制會同時 highlight 兩張圖中對應的 layer / gate。
+
+**Qubit 順序切換**：工具列的 ↕ 單鍵（與 Wiring diagram 的 `↕ |00⟩→|11⟩`
+同款）切換線路上下順序，按鈕標籤即目前由上而下的讀法（下表以 n = 3 為例）：
+
+| 按鈕 | 由上而下 | 用途 |
+|---|---|---|
+| `↕ \|x₂⟩→\|x₀⟩`（預設） | \|x_{n−1}⟩ … \|x₀⟩ | MSQ，與 ket 字串由左至右的讀法一致 |
+| `↕ \|x₀⟩→\|x₂⟩`（按下） | \|x₀⟩ … \|x_{n−1}⟩ | Qiskit 順序，與 Colab 的 `qc.draw('mpl')` 輸出相同，方便並排比對 |
+
+此切換只改變電路圖的繪製方向，不影響 gate 本身或匯出的 Qiskit 程式碼；
+在 Qiskit 程式碼 / Jupyter 分頁時會停用。
 
 **Positive-only mode** 使用 X-共軛恆等式
 
@@ -117,9 +130,9 @@ wire、q=n−1 是頂部，時間軸由左至右。Wiring diagram 與 quantum ci
 | 視圖 | 互動 |
 |---|---|
 | Adjacent Bipartite Graph | hover 左欄高亮 outgoing 合法邊；hover 右欄高亮 incoming；切換 self-loop |
-| Permutation Builder | 點兩下 / 拖曳連線；藍邊 = legal、橙邊 = 需要分層、紅 = 衝突 silent-snap；即時 cycle 表示 |
+| Permutation Builder | 點兩下 / 拖曳連線；藍邊 = legal、橙邊 = 需要分層、紅 = 衝突 silent-snap；即時 cycle 表示與雙行（Cauchy）表示法，可切換**二進位 ↔ 十進位** ket（\|101⟩ ↔ \|5⟩，兩者同步）；排列矩陣 P_α 可切換加注 ↔ 標準 |
 | Layered Realization | 多欄 wiring 圖；每條 strand 一個色；step prev/next/play/pause；Top-down ↔ Bottom-up 切換（Gray-path 走法）；Original ↔ Reduced 切換（peephole 化簡）；Walk-aware modifier（命中時亮 chip）；runtime verification chip；折疊式「學習資訊」面板含 KaTeX 排版的六段定理與公式 |
-| Quantum Circuit | MSQ 配置（\|x₀⟩ 在最下）；layer → 多控 X gate；Mixed control ↔ Positive-only 切換；active gate 與 wiring 同步 highlight |
+| Quantum Circuit | MSQ 配置（\|x₀⟩ 在最下）↔ Qiskit 順序（\|x₀⟩ 在最上，同 Colab）↕ 單鍵切換；Qiskit 風格實心 `⊕` target；layer → 多控 X gate；Mixed control ↔ Positive-only 切換；active gate 與 wiring 同步 highlight |
 
 控制面板：n 由 TextField + Slider 雙向綁定（0 ≤ n ≤ 10，n > 6 提示視圖會
 擁擠）。
@@ -185,7 +198,7 @@ AdjacentGraphExplorer/
       ├─ LegalGraphView.tsx   # Adjacent Bipartite Graph 視圖
       ├─ PermutationBuilder.tsx  # 連連看 Builder
       ├─ LayeredView.tsx      # Wiring diagram + 動畫控制（嵌入 QuantumCircuitView + LearningPanel）
-      ├─ QuantumCircuitView.tsx  # 量子電路（MSQ + Mixed/Positive-only）
+      ├─ QuantumCircuitView.tsx  # 量子電路（MSQ ↔ Qiskit 順序 + Mixed/Positive-only）
       ├─ LearningPanel.tsx    # 折疊式 decomposition theory（KaTeX 排版）
       └─ Math.tsx             # KaTeX 包裝元件
 ```

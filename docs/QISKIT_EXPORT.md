@@ -44,10 +44,16 @@ UI 行為（為了 連連看 流暢度）：
 
 **改動 `layered.ts` 的演算法時，必須同步更新這段 Python**，否則函式版會與 app drift。
 
+`optimal_layers(perm, n)`（`build_circuit(..., optimal=True)`）是 `src/lib/synthesis.ts`
+`shortestCircuit(…, 'mcx')` 的移植：`legal_edges` 的生成順序（a 遞增、target bit 遞增）
+與往回剝層的 tie-breaking 必須和 TS 完全一致，才會得到同一條最短序列。僅支援 n ≤ 3。
+曾以 403 個案例（n=3 隨機 400 + 範例 α + n=1、2）比對，**全數一致**。
+
 #### 驗證等價性（可重現）
 
 1. 用 `scripts/verify-layered.mjs` 的 JS mirror，對所有排列（n=2、n=3 全枚舉 + n=4
-   抽樣）× strategy × walkAware × reduced 產生參考 layers。
+   抽樣）× strategy × walkAware × reduced 產生參考 layers（optimal 則以 Node 直接
+   import `synthesis.ts` 產生）。
 2. 用 regex 從 `qiskit.ts` 抽出 `FUNCTION_MODULE`（去掉 `from qiskit` 兩行），以
    Python `exec` 跑同樣 case，逐一比對。
 3. 曾跑 **334,752 cases 全數一致**。

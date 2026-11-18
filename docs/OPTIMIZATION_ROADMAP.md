@@ -36,6 +36,35 @@
   直接以相鄰邊分解，恰 m−1 層。O(m) 謂詞偵測。
 - **命中率**：n=2 75%、n=3 42.4%、合成 Hamming walk 100%。
 
+### ✅ Optimal：窮舉最短排序（搜尋型，n ≤ 3）
+
+- **位置**：`src/lib/synthesis.ts`（`shortestCircuit`、`legalLayerLowerBound`）；
+  `optimizeRealization` / `applyLayerMode` in `src/lib/layered.ts`
+- **UI**：`Original / Reduced / Optimal` 同一組 ToggleButtonGroup 的第三個值（不另加 toggle）。
+  Optimal 時 Top-down/Bottom-up 與 Walk-aware 停用並以 Tooltip 說明；旁邊 chip 顯示
+  `7L · LB 6`（達下界時加 ✓）。n ≥ 4 時按鈕 disabled。Chain 模式為逐段各自最短。
+- **規則**：只用同一種合法 layer（Hamming-1 對換 =(n−1)-控 X），從 identity 對 S_{2ⁿ}
+  做 BFS（n=3 為 8! = 40 320 個狀態），再由目標往回剝最後一層重建序列。這等價於
+  超立方體 Qₙ 上的 **token swapping**（一般圖／樹上皆 NP-complete，無已知 Qₙ 公式）。
+- **下界**（任意 n 皆可算）：max(2ⁿ − 循環數, ⌈Σ d_H(x, α(x)) / 2⌉)。n=3 全排列中
+  60%（24 328 / 40 320）最佳值恰等於下界，其餘最多差 3。
+- **成效**（`npm run verify` 實測）：n=3 平均 13.13 → 6.61 層；最壞 22 → 12。
+- **n ≥ 4**：16! ≈ 2×10¹³ 無法窮舉；可行方向為單題 A*/IDA*（以上述下界為啟發函數）
+  或啟發式 + 下界證書（結果 = 下界即證明最佳）。尚未實作。
+
+### ✅ Gate 庫比較卡片（演算法家族切換，n ≤ 3）
+
+- **位置**：`src/components/GateLibraryView.tsx`（放在 Quantum Circuit 卡片下方）
+- **目的**：讓使用者自行切換「現行 / ① MCX 最佳排序 / ② +SWAP / ③ +Fredkin /
+  ④ X·CNOT·Toffoli / ⑤ ④+SWAP+Fredkin」，比較各 gate 庫的最短電路長度。
+  每顆按鈕顯示 gate 數；SWAP 類 gate 以紫色標示並統計；②③⑤ 會說明與不含 SWAP
+  的版本相比是否更短。
+- **為何是獨立卡片**：②～⑤ 的一個 gate 可能同時搬動多對基底態，無法與 Wiring
+  Diagram 的單一 swap layer 一一對應，因此不放進主圖的切換。
+- **n=3 全排列最短長度**（最壞 / 平均）：現行 22 / 13.13；① 12 / 6.61；② 10 / 5.87；
+  ③ 9 / 5.59；④ 6 / 4.58；⑤ 6 / 4.14。主要的縮短來自「排序」與「控制端較少」，
+  SWAP / Fredkin 的額外貢獻有限。
+
 ## 三、規劃中（原 roadmap）
 
 ### Smart anchor selection（搜尋型）

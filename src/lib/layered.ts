@@ -11,6 +11,19 @@ import {
   hammingDistance,
   type Mapping,
 } from './permutation';
+import { mcxGateToSwap, shortestCircuit, SYNTH_MAX_N } from './synthesis';
+
+/**
+ * Which layer sequence the views show for the same α:
+ *   'original' — the algorithm's raw output (teaching trajectory);
+ *   'reduced'  — peephole-cancelled (`reduceRealization`);
+ *   'optimal'  — the provably shortest legal-layer sequence found by
+ *                exhaustive search (`optimizeRealization`, n ≤ 3 only).
+ */
+export type LayerMode = 'original' | 'reduced' | 'optimal';
+
+/** Largest n for which the 'optimal' layer mode is available. */
+export const OPTIMAL_MAX_N = SYNTH_MAX_N;
 
 /**
  * Internal Gray-path strategy values. UI labels rename them as:
@@ -411,6 +424,40 @@ export function reduceRealization(real: LayeredRealization): LayeredRealization 
   };
 }
 
+/**
+ * Replace the layer sequence with a shortest possible one: exhaustive BFS over
+ * S_{2ⁿ} using only legal (Hamming-1) transpositions as generators, i.e. the
+ * same gate type as every other mode (token swapping on the hypercube).
+ * Returns null when n > OPTIMAL_MAX_N. Problem descriptors pass through
+ * unchanged, as in `reduceRealization`.
+ */
+export function optimizeRealization(
+  real: LayeredRealization,
+  n: number,
+): LayeredRealization | null {
+  const target = real.trajectories.map((t) => t[t.length - 1]!);
+  const gates = shortestCircuit(target, n, 'mcx');
+  if (gates === null) return null;
+  const layers: LayerStep[] = gates.map((g) => ({ swap: mcxGateToSwap(g) }));
+  const { trajectories, movedRows, verification } = traceAndVerify(
+    layers,
+    real.trajectories.length,
+    (r) => target[r]!,
+  );
+  return { ...real, layers, trajectories, movedRows, verification };
+}
+
+/** Apply a LayerMode to a freshly decomposed realization. */
+export function applyLayerMode(
+  real: LayeredRealization,
+  n: number,
+  mode: LayerMode,
+): LayeredRealization {
+  if (mode === 'reduced') return reduceRealization(real);
+  if (mode === 'optimal') return optimizeRealization(real, n) ?? real;
+  return real;
+}
+
 /** Layer range of one chain stage: layers[start .. end-1] (0-based, end exclusive). */
 export type ChainSegment = { start: number; end: number };
 
@@ -439,22 +486,21 @@ export function segmentOfStep(segments: ChainSegment[], step: number): number {
  * The final permutation is identical to the direct decomposition; only the
  * path and the layer count differ.
  *
- * `reduced` runs the peephole reduction *inside each stage only* — reducing
- * across a stage boundary could cancel layers from two different stages and
- * erase the boundary.
+ * `mode` ('reduced' / 'optimal') is applied *inside each stage only* —
+ * working across a stage boundary could merge layers from two different
+ * stages and erase the boundary.
  */
 export function realizeChain(
   stages: Mapping[],
   n: number,
   strategy: Strategy,
   walkAware: boolean,
-  reduced: boolean,
+  mode: LayerMode,
 ): { realization: LayeredRealization; segments: ChainSegment[] } {
   const total = 1 << n;
-  const parts = stages.map((m) => {
-    const r = realizeLayered(m, n, strategy, walkAware);
-    return reduced ? reduceRealization(r) : r;
-  });
+  const parts = stages.map((m) =>
+    applyLayerMode(realizeLayered(m, n, strategy, walkAware), n, mode),
+  );
 
   const layers: LayerStep[] = [];
   const segments: ChainSegment[] = [];

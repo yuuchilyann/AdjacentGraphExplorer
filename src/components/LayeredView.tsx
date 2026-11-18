@@ -23,15 +23,19 @@ import Chip from '@mui/material/Chip';
 
 import { subscript, type Mapping } from '../lib/permutation';
 import {
+  applyLayerMode,
   formatSwap,
+  OPTIMAL_MAX_N,
   realizeChain,
   realizeLayered,
-  reduceRealization,
   segmentOfStep,
   segmentRangeLabel,
   SEGMENT_COLORS,
+  type LayerMode,
   type Strategy,
 } from '../lib/layered';
+import { legalLayerLowerBound } from '../lib/synthesis';
+import { GateLibraryView } from './GateLibraryView';
 import { QuantumCircuitView } from './QuantumCircuitView';
 import { QiskitPackageView } from './QiskitPackageView';
 import { ElementaryRowMatrixPanel } from './ElementaryRowMatrixPanel';
@@ -78,21 +82,28 @@ export function LayeredView({
 }: LayeredViewProps) {
   const { t, tStr } = useI18n();
   const [strategy, setStrategy] = useState<Strategy>('above');
-  const [reduced, setReduced] = useState(false);
+  const [modeRaw, setMode] = useState<LayerMode>('original');
   const [walkAware, setWalkAware] = useState(false);
   const [reversedRows, setReversedRows] = useState(false);
-  // Chain mode: stage-by-stage realization. `reduced` is applied inside each
-  // stage only, so the stage boundaries (segments) survive the reduction.
+  // 'optimal' is exhaustive search — only for n ≤ OPTIMAL_MAX_N. If n grows
+  // past that while it is selected, fall back to Original (button disabled).
+  const optimalAvailable = n >= 1 && n <= OPTIMAL_MAX_N;
+  const mode: LayerMode =
+    modeRaw === 'optimal' && !optimalAvailable ? 'original' : modeRaw;
+  const reduced = mode === 'reduced';
+  const optimal = mode === 'optimal';
+  // Chain mode: stage-by-stage realization. `mode` is applied inside each
+  // stage only, so the stage boundaries (segments) survive.
   const chainCanonical = useMemo(
-    () => (stages ? realizeChain(stages, n, strategy, walkAware, false) : null),
+    () => (stages ? realizeChain(stages, n, strategy, walkAware, 'original') : null),
     [stages, n, strategy, walkAware],
   );
   const chainFinal = useMemo(
     () =>
-      stages && reduced
-        ? realizeChain(stages, n, strategy, walkAware, true)
+      stages && mode !== 'original'
+        ? realizeChain(stages, n, strategy, walkAware, mode)
         : chainCanonical,
-    [stages, n, strategy, walkAware, reduced, chainCanonical],
+    [stages, n, strategy, walkAware, mode, chainCanonical],
   );
   const segments = chainFinal?.segments ?? null;
   const canonical = useMemo(
@@ -101,16 +112,23 @@ export function LayeredView({
   );
   const realization = useMemo(
     () =>
-      chainFinal?.realization ?? (reduced ? reduceRealization(canonical) : canonical),
-    [chainFinal, canonical, reduced],
+      chainFinal?.realization ?? applyLayerMode(canonical, n, mode),
+    [chainFinal, canonical, n, mode],
   );
+  // Provable lower bound on legal layers for the whole α (any n). Shown with
+  // the Optimal mode so the user can see the BFS result cannot be beaten.
+  const target = useMemo(
+    () => canonical.trajectories.map((tr) => tr[tr.length - 1]!),
+    [canonical],
+  );
+  const lowerBound = useMemo(() => legalLayerLowerBound(target, n), [target, n]);
   // Anchor-only baseline for the saved-layers indicator (always computed
   // even when walkAware is on, so the chip can show "saved Δ layers").
   const anchorBaseline = useMemo(
     () =>
       walkAware
         ? stages
-          ? realizeChain(stages, n, strategy, false, false).realization
+          ? realizeChain(stages, n, strategy, false, 'original').realization
           : realizeLayered(mapping, n, strategy, false)
         : canonical,
     [stages, mapping, n, strategy, walkAware, canonical],
@@ -237,6 +255,9 @@ export function LayeredView({
               layers: realization.layers.length,
               maxDirectDistance: realization.maxDirectDistance,
               reduced,
+              optimal,
+              chain: !!stages,
+              lowerBound: lowerBound.bound,
               cancelledPairs,
               canonicalLayers: canonical.layers.length,
             })}
@@ -292,7 +313,9 @@ export function LayeredView({
       >
         <Tooltip
           title={
-            canonical.usedGrayPath
+            optimal
+              ? t('layered.strategy.tooltip.optimal')
+              : canonical.usedGrayPath
               ? t('layered.strategy.tooltip.gray')
               : walkAware && canonical.walkDecomposedCycles === canonical.totalCycles && canonical.totalCycles > 0
                 ? t('layered.strategy.tooltip.walkAll')
@@ -306,53 +329,91 @@ export function LayeredView({
               size="small"
               onChange={(_, v: Strategy | null) => v && setStrategy(v)}
               color="primary"
-              disabled={!canonical.usedGrayPath}
+              disabled={!canonical.usedGrayPath || optimal}
             >
               <ToggleButton value="above">Top-down</ToggleButton>
               <ToggleButton value="below">Bottom-up</ToggleButton>
             </ToggleButtonGroup>
           </span>
         </Tooltip>
-        <Tooltip
-          title={
-            reduced
-              ? t('layered.reduced.tooltip.on')
-              : t('layered.reduced.tooltip.off')
-          }
-        >
-          <ToggleButtonGroup
-            value={reduced ? 'reduced' : 'original'}
-            exclusive
-            size="small"
-            onChange={(_, v: string | null) => {
-              if (v === 'original') setReduced(false);
-              else if (v === 'reduced') setReduced(true);
-            }}
-            color="secondary"
-          >
-            <ToggleButton value="original">Original</ToggleButton>
-            <ToggleButton value="reduced">Reduced</ToggleButton>
-          </ToggleButtonGroup>
-        </Tooltip>
         <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
           <Tooltip
             title={
-              walkAware
+              <>
+                {optimal
+                  ? t('layered.optimal.tooltip')
+                  : reduced
+                  ? t('layered.reduced.tooltip.on')
+                  : t('layered.reduced.tooltip.off')}
+                {!optimalAvailable && (
+                  <>
+                    <br />
+                    {t('layered.optimal.tooltip.disabled', { n, max: OPTIMAL_MAX_N })}
+                  </>
+                )}
+              </>
+            }
+          >
+            <ToggleButtonGroup
+              value={mode}
+              exclusive
+              size="small"
+              onChange={(_, v: LayerMode | null) => v && setMode(v)}
+              color="secondary"
+            >
+              <ToggleButton value="original">Original</ToggleButton>
+              <ToggleButton value="reduced">Reduced</ToggleButton>
+              <ToggleButton value="optimal" disabled={!optimalAvailable}>
+                Optimal
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Tooltip>
+          {optimal && !stages && (
+            <Tooltip
+              title={t('layered.optimal.chip.tooltip', {
+                layers: realization.layers.length,
+                cycle: lowerBound.cycle,
+                distance: lowerBound.distance,
+                bound: lowerBound.bound,
+              })}
+            >
+              <Chip
+                size="small"
+                color={
+                  realization.layers.length === lowerBound.bound ? 'success' : 'secondary'
+                }
+                variant="outlined"
+                label={`${realization.layers.length}L · LB ${lowerBound.bound}${
+                  realization.layers.length === lowerBound.bound ? ' ✓' : ''
+                }`}
+              />
+            </Tooltip>
+          )}
+        </Stack>
+        <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+          <Tooltip
+            title={
+              optimal
+                ? t('layered.walk.tooltip.optimal')
+                : walkAware
                 ? t('layered.walk.tooltip.on')
                 : t('layered.walk.tooltip.off')
             }
           >
-            <ToggleButton
-              value="walk"
-              size="small"
-              selected={walkAware}
-              onChange={() => setWalkAware((v) => !v)}
-              color="success"
-            >
-              Walk-aware
-            </ToggleButton>
+            <span>
+              <ToggleButton
+                value="walk"
+                size="small"
+                selected={walkAware}
+                disabled={optimal}
+                onChange={() => setWalkAware((v) => !v)}
+                color="success"
+              >
+                Walk-aware
+              </ToggleButton>
+            </span>
           </Tooltip>
-          {walkAware && canonical.walkDecomposedCycles > 0 && (
+          {!optimal && walkAware && canonical.walkDecomposedCycles > 0 && (
             <Tooltip
               title={t('layered.walk.chip.detected.tooltip', {
                 decomposed: canonical.walkDecomposedCycles,
@@ -367,7 +428,7 @@ export function LayeredView({
               />
             </Tooltip>
           )}
-          {walkAware && canonical.walkDecomposedCycles === 0 && canonical.totalCycles > 0 && (
+          {!optimal && walkAware && canonical.walkDecomposedCycles === 0 && canonical.totalCycles > 0 && (
             <Tooltip title={t('layered.walk.chip.none.tooltip')}>
               <Chip
                 size="small"
@@ -517,7 +578,7 @@ export function LayeredView({
 
           <SvgViewport
             svgRef={svgRef}
-            filename={`layered-realization-n${n}-${strategy}${walkAware ? '-walk' : ''}${reduced ? '-reduced' : ''}${segments ? '-chain' : ''}`}
+            filename={`layered-realization-n${n}-${strategy}${walkAware ? '-walk' : ''}${mode !== 'original' ? `-${mode}` : ''}${segments ? '-chain' : ''}`}
           >
             <svg
               ref={svgRef}
@@ -861,6 +922,12 @@ export function LayeredView({
             segments={segments}
           />
 
+          <GateLibraryView
+            target={target}
+            n={n}
+            baselineLayers={canonical.layers}
+          />
+
           <ElementaryRowMatrixPanel
             realization={realization}
             n={n}
@@ -870,7 +937,7 @@ export function LayeredView({
           <QiskitPackageView
             realization={realization}
             n={n}
-            reduced={reduced}
+            mode={mode}
           />
 
           {showLearningPanel && (

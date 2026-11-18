@@ -413,6 +413,13 @@ export const zh = {
         </>
       ) : (p.reduced as boolean) ? (
         <> — 無可消去的虛工</>
+      ) : (p.optimal as boolean) ? (
+        <>
+          {' '}— 窮舉最短排序（原 {String(p.canonicalLayers)} 層）
+          {(p.chain as boolean)
+            ? '；Chain 模式為逐段各自最短'
+            : <>，下界 {String(p.lowerBound)} 層{(p.layers as number) === (p.lowerBound as number) ? '，已達下界' : ''}</>}
+        </>
       ) : null}
       。
     </>
@@ -426,6 +433,16 @@ export const zh = {
     '本次所有 cycle 都被 Walk-aware 直接吃下，沒有 Gray-path 共軛展開，Top-down/Bottom-up 對結果無影響（已 disabled）。',
   'layered.strategy.tooltip.none':
     '本次排列無 d ≥ 2 的 transposition，沒有 Gray-path 共軛展開，Top-down/Bottom-up 對結果無影響（已 disabled）。',
+  'layered.strategy.tooltip.optimal':
+    'Optimal 模式直接窮舉最短排序，不經過 Gray-path 展開，Top-down/Bottom-up 對結果無影響（已 disabled）。',
+  'layered.optimal.tooltip':
+    'Optimal：只用同一種合法 layer（Hamming-1 對換），以窮舉搜尋排出可證明最短的順序（n ≤ 3）。原本的分解教學軌跡請切回 Original。',
+  'layered.optimal.tooltip.disabled': (p: TParams) =>
+    `Optimal 需窮舉全部排列，只支援 n ≤ ${p.max}（目前 n = ${p.n}，已 disabled）。`,
+  'layered.optimal.chip.tooltip': (p: TParams) =>
+    `窮舉得到的最短層數 = ${p.layers}。下界 = max(循環下界 ${p.cycle}, 距離下界 ${p.distance}) = ${p.bound}：循環下界 = 2ⁿ − 循環數（每次對換讓循環數 ±1）；距離下界 = ⌈Σ d_H(x, α(x)) / 2⌉（每層只讓兩個態各走一步）。${p.layers === p.bound ? '已達下界，不可能更短。' : `窮舉保證 ${p.layers} 已是最短；此 α 的下界不緊。`}`,
+  'layered.walk.tooltip.optimal':
+    'Optimal 模式直接窮舉最短排序，Walk-aware 對結果無影響（已 disabled）。',
   'layered.reduced.tooltip.on':
     '已開啟：相鄰（或可交換通過的）同 swap 對會自動相消，顯示最短化序列。',
   'layered.reduced.tooltip.off':
@@ -505,7 +522,7 @@ export const zh = {
       <Box component="span" sx={{ mx: 0.5, fontFamily: 'monospace' }}>
         {String(p.strategy)}
       </Box>
-      、walk_aware={String(p.walkAware)}、reduce={String(p.reduced)}）產生範例
+      、walk_aware={String(p.walkAware)}、reduce={String(p.reduced)}、optimal={String(p.optimal)}）產生範例
       呼叫；改 alpha_cycles 即可重算其他排列。
     </>
   ),
@@ -544,6 +561,75 @@ export const zh = {
       )}
     </>
   ),
+
+  // ── gate library comparison card ──
+  'gatelib.title': 'Gate 庫比較 — SWAP / Fredkin / CNOT 能讓電路短多少？',
+  'gatelib.subtitle':
+    '同一個 α，換不同的 gate 種類組合：按鈕上的數字是該組合下的 gate 數。除「現行」外，其餘皆為窮舉所有排列後證明最短的電路（n ≤ 3）。',
+  'gatelib.opt.baseline': '現行（Gray-path）',
+  'gatelib.opt.mcx': '① MCX 最佳排序',
+  'gatelib.opt.mcx-swap': '② ① + SWAP',
+  'gatelib.opt.mcx-swap-cswap': '③ ② + Fredkin',
+  'gatelib.opt.nct': '④ X / CNOT / Toffoli',
+  'gatelib.opt.nct-swap-cswap': '⑤ ④ + SWAP + Fredkin',
+  'gatelib.desc.baseline':
+    '目前演算法的輸出：每個 transposition 依 Gray-path 共軛展開成 2d−1 個 (n−1)-控 X，與上方 Wiring Diagram / Quantum Circuit（Original）相同。',
+  'gatelib.desc.mcx':
+    '只用同一種 gate（(n−1)-控 X = 一個 Hamming-1 對換），但重新排出最短順序。每個 gate 仍是合法 layer，可與 Wiring Diagram 一一對應（主圖的 Optimal 即此方案）。',
+  'gatelib.desc.mcx-swap':
+    '再允許無控制的 SWAP（交換兩條 qubit 線）。注意：一個 SWAP 會同時搬動多對基底態（例如 SWAP(q0↔q1) 同時做 |001⟩↔|010⟩ 與 |101⟩↔|110⟩）。',
+  'gatelib.desc.mcx-swap-cswap':
+    '再允許 Fredkin（受控 SWAP）：一個 Fredkin 恰好等於一個 01↔10 型的 d = 2 對換（例如 Fredkin(q2●; q0↔q1) = |101⟩↔|110⟩），現行做法需 3 個 gate。',
+  'gatelib.desc.nct':
+    '允許控制端數量較少的 gate：X（無控制）、CNOT（1 控）、Toffoli（2 控），控制端可空心可實心。控制端越少，一個 gate 同時搬動的基底態對越多。',
+  'gatelib.desc.nct-swap-cswap': '全部 gate 種類都允許：X / CNOT / Toffoli / SWAP / Fredkin。',
+  'gatelib.def.title': '方案定義（點選列也可切換）',
+  'gatelib.def.head.option': '方案',
+  'gatelib.def.head.gates': '允許使用的 gate',
+  'gatelib.def.head.order': '排列方式',
+  'gatelib.def.head.wiring': '與上方 Wiring Diagram',
+  'gatelib.def.gates.baseline': '只有 MCX（n−1 控）',
+  'gatelib.def.gates.mcx': '只有 MCX（n−1 控）',
+  'gatelib.def.gates.mcx-swap': 'MCX + SWAP',
+  'gatelib.def.gates.mcx-swap-cswap': 'MCX + SWAP + Fredkin',
+  'gatelib.def.gates.nct': 'X + CNOT + Toffoli（控制端 0～2 個，空心實心皆可）',
+  'gatelib.def.gates.nct-swap-cswap': 'X + CNOT + Toffoli + SWAP + Fredkin',
+  'gatelib.def.order.baseline': '現行演算法：cycle 拆成對換，d ≥ 2 依 Gray-path 共軛展開成 2d−1 層（固定規則，非最短）',
+  'gatelib.def.order.search': '窮舉全部排列（BFS），取 gate 數最少的電路（可證明最短）',
+  'gatelib.def.wiring.yes': '一一對應：每個 gate = 一個合法 layer',
+  'gatelib.def.wiring.no': '不一定對應：一個 gate 可能同時搬動多對基底態',
+  'gatelib.glossary.title': (p: TParams) => `Gate 定義（以 n = ${p.n} 為例）`,
+  'gatelib.glossary.mcx': (p: TParams) =>
+    `除 target 外其餘 ${Number(p.n) - 1} 條線全是控制端：只交換「一對」Hamming 距離 1 的態 |a⟩↔|b⟩，即一個合法 layer。`,
+  'gatelib.glossary.toffoli':
+    '2 個控制端的 X。n = 3 時就是 MCX；n ≥ 4 時一次交換多對態。',
+  'gatelib.glossary.cnot': (p: TParams) =>
+    `1 個控制端的 X：控制端條件成立時翻轉 target，一次交換 ${p.quarter} 對態。`,
+  'gatelib.glossary.x': (p: TParams) =>
+    `無控制端，直接翻轉一條線：一次交換 ${p.half} 對態（所有態都被移動）。`,
+  'gatelib.glossary.swap':
+    '交換兩條 qubit 線的值：這兩個位元不同的態兩兩互換（例 SWAP(q0↔q1)：|001⟩↔|010⟩、|101⟩↔|110⟩）。',
+  'gatelib.glossary.cswap':
+    '受控 SWAP（又稱 controlled-SWAP）：其餘線為控制端，只交換「一對」d = 2 且為 01↔10 型的態（例 Fredkin(q2●; q0↔q1)：|101⟩↔|110⟩）。',
+  'gatelib.glossary.symbols':
+    '符號：● 實心控制 = 該位元須為 1；○ 空心控制 = 須為 0；⊕ = 被翻轉的 target；方框 [X] = 無控制的 X；紫色 × × = 互換這兩條線（SWAP / Fredkin）。',
+  'gatelib.type.mcx': 'MCX（n−1 控）',
+  'gatelib.type.toffoli': 'Toffoli',
+  'gatelib.type.cnot': 'CNOT',
+  'gatelib.type.x': 'X',
+  'gatelib.type.swap': 'SWAP',
+  'gatelib.type.cswap': 'Fredkin',
+  'gatelib.cmp.same': (p: TParams) =>
+    `與「${p.base}」同長度 — 對這個 α，加入 SWAP 類 gate 沒有更短。`,
+  'gatelib.cmp.less': (p: TParams) =>
+    `比「${p.base}」少 ${p.saved} 個 gate — 這是 SWAP 類 gate 對此 α 的實際貢獻。`,
+  'gatelib.computing': '窮舉計算中…',
+  'gatelib.disabled.tooltip': (p: TParams) =>
+    `窮舉最短電路只支援 n ≤ ${p.max}（n = ${p.n} 的排列數過多）；目前僅能顯示現行演算法。`,
+  'gatelib.verify.ok': '已驗證：把每個基底態依序通過所有 gate，終點皆等於 α。',
+  'gatelib.verify.fail': '驗證失敗：有基底態的終點不等於 α。',
+  'gatelib.footer':
+    '紫色為 SWAP 類 gate（× 標記，Fredkin 另帶控制端）。②～⑤ 的一個 gate 可能同時搬動多對基底態，因此不與上方 Wiring Diagram 的單一 swap layer 對應；同長度的最短解可能不只一組，此處固定顯示其中一組。',
 } satisfies Record<string, TValue>;
 
 /** Union of all valid translation keys (drives autocomplete + missing-key errors). */

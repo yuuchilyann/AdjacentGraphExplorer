@@ -17,7 +17,7 @@
  *                  only (matches hardware that lacks anti-controls).
  */
 
-import type { Strategy } from './layered';
+import type { LayerMode, Strategy } from './layered';
 import type { Lang } from '../i18n/types';
 
 export type QiskitMode = 'mixed' | 'positive';
@@ -239,7 +239,8 @@ export function buildIpynb(cells: NotebookCell[]): string {
 // arbitrary permutation α and builds the circuit itself. This is a faithful
 // port of src/lib/layered.ts (realizeLayered + decomposeTransposition +
 // grayPath + tryWalkDecomposition) and src/lib/permutation.ts
-// (cycleDecomposition), plus simplifyLayers for the Reduced view.
+// (cycleDecomposition), plus simplifyLayers for the Reduced view and
+// optimal_layers (port of src/lib/synthesis.ts, library 'mcx') for Optimal.
 // ───────────────────────────────────────────────────────────────────────────
 
 /** The static algorithm module — identical regardless of the concrete α. */
@@ -387,6 +388,56 @@ def simplify_layers(layers):
     return out
 
 
+def legal_edges(n):
+    """All legal (Hamming=1) swaps (a, a|1<<t), a ascending then t ascending."""
+    return [(a, a | (1 << t)) for a in range(1 << n) for t in range(n)
+            if not (a >> t) & 1]
+
+
+_OPTIMAL_DIST = {}
+
+
+def _swap_values(p, a, b):
+    return tuple(b if v == a else a if v == b else v for v in p)
+
+
+def optimal_layers(perm, n):
+    """Shortest list of legal 2-cycles realizing perm (exhaustive BFS).
+
+    Only feasible for n <= 3 (8! = 40320 permutations). Same generator order
+    and tie-breaking as the web app, so it returns the identical sequence.
+    """
+    if n > 3:
+        raise ValueError("optimal search is exhaustive: n <= 3 only")
+    size = 1 << n
+    edges = legal_edges(n)
+    if n not in _OPTIMAL_DIST:
+        start = tuple(range(size))
+        dist, frontier = {start: 0}, [start]
+        while frontier:
+            nxt = []
+            for p in frontier:
+                for a, b in edges:
+                    q = _swap_values(p, a, b)
+                    if q not in dist:
+                        dist[q] = dist[p] + 1
+                        nxt.append(q)
+            frontier = nxt
+        _OPTIMAL_DIST[n] = dist
+    dist = _OPTIMAL_DIST[n]
+    cur = tuple(perm.get(x, x) for x in range(size))
+    layers = []
+    while dist[cur] > 0:                  # peel off the last layer each round
+        for a, b in edges:
+            prev = _swap_values(cur, a, b)
+            if dist[prev] == dist[cur] - 1:
+                layers.append((a, b))
+                cur = prev
+                break
+    layers.reverse()
+    return layers
+
+
 def legal_swap_to_mcx(qc, a, b, n, positive=False):
     """One legal (Hamming=1) swap |a> <-> |b>  ->  one multi-controlled X.
 
@@ -414,11 +465,18 @@ def legal_swap_to_mcx(qc, a, b, n, positive=False):
 
 
 def build_circuit(perm, n, strategy="above", walk_aware=False,
-                  reduce=False, positive=False):
-    """Arbitrary permutation α (as dict src->dst) -> Qiskit QuantumCircuit."""
-    layers = realize_layered(perm, n, strategy, walk_aware)
-    if reduce:
-        layers = simplify_layers(layers)
+                  reduce=False, optimal=False, positive=False):
+    """Arbitrary permutation α (as dict src->dst) -> Qiskit QuantumCircuit.
+
+    optimal=True (n <= 3) ignores strategy / walk_aware / reduce and uses the
+    provably shortest legal-layer sequence instead.
+    """
+    if optimal:
+        layers = optimal_layers(perm, n)
+    else:
+        layers = realize_layered(perm, n, strategy, walk_aware)
+        if reduce:
+            layers = simplify_layers(layers)
     qc = QuantumCircuit(n)
     for a, b in layers:
         legal_swap_to_mcx(qc, a, b, n, positive)
@@ -450,7 +508,7 @@ function buildFunctionExample(
   n: number,
   strategy: Strategy,
   walkAware: boolean,
-  reduced: boolean,
+  mode: LayerMode,
 ): string {
   const ketCycles =
     cycles.length === 0
@@ -468,7 +526,8 @@ function buildFunctionExample(
     `alpha_cycles = ${cyclesPy}`,
     'perm = perm_from_cycles(alpha_cycles)',
     `qc = build_circuit(perm, n, strategy="${strategy}", ` +
-      `walk_aware=${py(walkAware)}, reduce=${py(reduced)}, positive=False)`,
+      `walk_aware=${py(walkAware)}, reduce=${py(mode === 'reduced')}, ` +
+      `optimal=${py(mode === 'optimal')}, positive=False)`,
   ].join('\n');
 }
 
@@ -481,12 +540,12 @@ export function buildQiskitPackageCode(
   n: number,
   strategy: Strategy,
   walkAware: boolean,
-  reduced: boolean,
+  mode: LayerMode,
 ): string {
   return (
     buildFunctionModule() +
     '\n\n\n' +
-    buildFunctionExample(cycles, n, strategy, walkAware, reduced) +
+    buildFunctionExample(cycles, n, strategy, walkAware, mode) +
     VISUALIZE_FOOTER
   );
 }
@@ -503,7 +562,7 @@ export function buildQiskitPackageNotebook(
   n: number,
   strategy: Strategy,
   walkAware: boolean,
-  reduced: boolean,
+  mode: LayerMode,
   lang: Lang,
 ): NotebookCell[] {
   return [
@@ -511,7 +570,7 @@ export function buildQiskitPackageNotebook(
     { source: buildFunctionModule() },
     {
       source:
-        buildFunctionExample(cycles, n, strategy, walkAware, reduced) +
+        buildFunctionExample(cycles, n, strategy, walkAware, mode) +
         '\n\n' +
         drawCell(lang),
     },

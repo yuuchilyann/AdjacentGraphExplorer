@@ -417,6 +417,13 @@ export const en = {
         </>
       ) : (p.reduced as boolean) ? (
         <> — no removable busy-work</>
+      ) : (p.optimal as boolean) ? (
+        <>
+          {' '}— exhaustive shortest order (was {String(p.canonicalLayers)} layers)
+          {(p.chain as boolean)
+            ? '; in chain mode each stage is shortest on its own'
+            : <>, lower bound {String(p.lowerBound)}{(p.layers as number) === (p.lowerBound as number) ? ', bound reached' : ''}</>}
+        </>
       ) : null}
       .
     </>
@@ -426,6 +433,16 @@ export const en = {
     `Verification failed: ${p.mismatches} strand endpoint(s) mismatched, ${p.illegal} illegal layer(s).`,
   'layered.strategy.tooltip.gray':
     'Gray-path traversal: Top-down takes the AND-bridge (low weight); Bottom-up takes the OR-bridge (high weight). Only matters for d ≥ 2 transpositions.',
+  'layered.strategy.tooltip.optimal':
+    'Optimal mode searches the shortest order directly, with no Gray-path expansion, so Top-down/Bottom-up has no effect (disabled).',
+  'layered.optimal.tooltip':
+    'Optimal: same legal layers (Hamming-1 transpositions) only, arranged into the provably shortest order by exhaustive search (n ≤ 3). Switch back to Original for the step-by-step decomposition.',
+  'layered.optimal.tooltip.disabled': (p: TParams) =>
+    `Optimal searches every permutation, so it supports n ≤ ${p.max} only (n = ${p.n} now; disabled).`,
+  'layered.optimal.chip.tooltip': (p: TParams) =>
+    `Shortest layer count from exhaustive search = ${p.layers}. Lower bound = max(cycle bound ${p.cycle}, distance bound ${p.distance}) = ${p.bound}: cycle bound = 2ⁿ − #cycles (each transposition changes the cycle count by ±1); distance bound = ⌈Σ d_H(x, α(x)) / 2⌉ (each layer moves two states one step). ${p.layers === p.bound ? 'Bound reached — it cannot be shorter.' : `The search guarantees ${p.layers} is shortest; the bound is not tight for this α.`}`,
+  'layered.walk.tooltip.optimal':
+    'Optimal mode searches the shortest order directly, so Walk-aware has no effect (disabled).',
   'layered.strategy.tooltip.walkAll':
     'Every cycle was absorbed directly by Walk-aware this time, with no Gray-path conjugation expansion, so Top-down/Bottom-up has no effect (disabled).',
   'layered.strategy.tooltip.none':
@@ -511,7 +528,7 @@ export const en = {
       <Box component="span" sx={{ mx: 0.5, fontFamily: 'monospace' }}>
         {String(p.strategy)}
       </Box>
-      , walk_aware={String(p.walkAware)}, reduce={String(p.reduced)}); change alpha_cycles to
+      , walk_aware={String(p.walkAware)}, reduce={String(p.reduced)}, optimal={String(p.optimal)}); change alpha_cycles to
       recompute other permutations.
     </>
   ),
@@ -550,4 +567,72 @@ export const en = {
       )}
     </>
   ),
+  // ── gate library comparison card ──
+  'gatelib.title': 'Gate library comparison — how much do SWAP / Fredkin / CNOT shorten the circuit?',
+  'gatelib.subtitle':
+    'Same α, different sets of allowed gates: the number on each button is the gate count. Except for “Current”, every circuit is the provably shortest one, found by exhaustive search over all permutations (n ≤ 3).',
+  'gatelib.opt.baseline': 'Current (Gray-path)',
+  'gatelib.opt.mcx': '① MCX, optimal order',
+  'gatelib.opt.mcx-swap': '② ① + SWAP',
+  'gatelib.opt.mcx-swap-cswap': '③ ② + Fredkin',
+  'gatelib.opt.nct': '④ X / CNOT / Toffoli',
+  'gatelib.opt.nct-swap-cswap': '⑤ ④ + SWAP + Fredkin',
+  'gatelib.desc.baseline':
+    'The current algorithm: each transposition is expanded by Gray-path conjugation into 2d−1 (n−1)-controlled X gates — identical to the wiring diagram / quantum circuit above (Original).',
+  'gatelib.desc.mcx':
+    'Same single gate type ((n−1)-controlled X = one Hamming-1 transposition), but rearranged into the shortest order. Every gate is still a legal layer and lines up 1:1 with the wiring diagram (this is the main view’s Optimal mode).',
+  'gatelib.desc.mcx-swap':
+    'Also allows an uncontrolled SWAP (exchange two qubit wires). Note: one SWAP moves several basis-state pairs at once (e.g. SWAP(q0↔q1) does |001⟩↔|010⟩ and |101⟩↔|110⟩ together).',
+  'gatelib.desc.mcx-swap-cswap':
+    'Also allows Fredkin (controlled SWAP): one Fredkin is exactly one d = 2 transposition of the 01↔10 kind (e.g. Fredkin(q2●; q0↔q1) = |101⟩↔|110⟩), which costs 3 gates in the current scheme.',
+  'gatelib.desc.nct':
+    'Allows gates with fewer controls: X (none), CNOT (1), Toffoli (2), with open or solid controls. The fewer the controls, the more basis-state pairs one gate moves at once.',
+  'gatelib.desc.nct-swap-cswap': 'Every gate type allowed: X / CNOT / Toffoli / SWAP / Fredkin.',
+  'gatelib.def.title': 'Option definitions (click a row to switch)',
+  'gatelib.def.head.option': 'Option',
+  'gatelib.def.head.gates': 'Allowed gates',
+  'gatelib.def.head.order': 'How the gates are arranged',
+  'gatelib.def.head.wiring': 'vs. the wiring diagram above',
+  'gatelib.def.gates.baseline': 'MCX (n−1 controls) only',
+  'gatelib.def.gates.mcx': 'MCX (n−1 controls) only',
+  'gatelib.def.gates.mcx-swap': 'MCX + SWAP',
+  'gatelib.def.gates.mcx-swap-cswap': 'MCX + SWAP + Fredkin',
+  'gatelib.def.gates.nct': 'X + CNOT + Toffoli (0–2 controls, open or solid)',
+  'gatelib.def.gates.nct-swap-cswap': 'X + CNOT + Toffoli + SWAP + Fredkin',
+  'gatelib.def.order.baseline': 'Current algorithm: cycles → transpositions, each d ≥ 2 one expanded by Gray-path conjugation into 2d−1 layers (fixed rule, not shortest)',
+  'gatelib.def.order.search': 'Exhaustive search over all permutations (BFS); the circuit with the fewest gates (provably shortest)',
+  'gatelib.def.wiring.yes': '1:1 — every gate is one legal layer',
+  'gatelib.def.wiring.no': 'Not necessarily — one gate may move several basis-state pairs',
+  'gatelib.glossary.title': (p: TParams) => `Gate definitions (for n = ${p.n})`,
+  'gatelib.glossary.mcx': (p: TParams) =>
+    `All ${Number(p.n) - 1} non-target wires are controls: swaps exactly ONE pair of Hamming-distance-1 states |a⟩↔|b⟩, i.e. one legal layer.`,
+  'gatelib.glossary.toffoli':
+    'X with 2 controls. At n = 3 it is the MCX; at n ≥ 4 it swaps several pairs at once.',
+  'gatelib.glossary.cnot': (p: TParams) =>
+    `X with 1 control: flips the target when the control matches, swapping ${p.quarter} pairs at once.`,
+  'gatelib.glossary.x': (p: TParams) =>
+    `No controls, flips one wire: swaps ${p.half} pairs at once (every state moves).`,
+  'gatelib.glossary.swap':
+    'Exchanges the values of two qubit wires: states whose two bits differ are swapped pairwise (e.g. SWAP(q0↔q1): |001⟩↔|010⟩, |101⟩↔|110⟩).',
+  'gatelib.glossary.cswap':
+    'Controlled SWAP: the remaining wires are controls, so it swaps exactly ONE pair of d = 2 states of the 01↔10 kind (e.g. Fredkin(q2●; q0↔q1): |101⟩↔|110⟩).',
+  'gatelib.glossary.symbols':
+    'Symbols: ● solid control = bit must be 1; ○ open control = bit must be 0; ⊕ = the flipped target; boxed [X] = uncontrolled X; purple × × = exchange these two wires (SWAP / Fredkin).',
+  'gatelib.type.mcx': 'MCX (n−1 ctrl)',
+  'gatelib.type.toffoli': 'Toffoli',
+  'gatelib.type.cnot': 'CNOT',
+  'gatelib.type.x': 'X',
+  'gatelib.type.swap': 'SWAP',
+  'gatelib.type.cswap': 'Fredkin',
+  'gatelib.cmp.same': (p: TParams) =>
+    `Same length as “${p.base}” — for this α, swap-type gates do not make it shorter.`,
+  'gatelib.cmp.less': (p: TParams) =>
+    `${p.saved} gate(s) fewer than “${p.base}” — the actual gain from swap-type gates for this α.`,
+  'gatelib.computing': 'Exhaustive search running…',
+  'gatelib.disabled.tooltip': (p: TParams) =>
+    `Exhaustive shortest-circuit search supports n ≤ ${p.max} only (too many permutations at n = ${p.n}); only the current algorithm is shown.`,
+  'gatelib.verify.ok': 'Verified: pushing every basis state through all gates lands exactly on α.',
+  'gatelib.verify.fail': 'Verification failed: some basis state does not land on α.',
+  'gatelib.footer':
+    'Purple marks swap-type gates (× marks; Fredkin adds a control). In ②–⑤ one gate may move several basis-state pairs at once, so these circuits do not line up with the wiring diagram’s single-swap layers. Shortest circuits are often not unique; one is shown.',
 } satisfies Dictionary;

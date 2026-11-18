@@ -16,7 +16,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import CodeIcon from '@mui/icons-material/Code';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
-import type { LayeredRealization, Strategy } from '../lib/layered';
+import type { LayeredRealization, LayerMode, Strategy } from '../lib/layered';
 import {
   cycleDecomposition,
   formatCycles,
@@ -35,8 +35,8 @@ import { useI18n } from '../i18n';
 export type QiskitPackageViewProps = {
   realization: LayeredRealization;
   n: number;
-  /** Whether the Reduced (peephole-simplified) layer view is active. */
-  reduced?: boolean;
+  /** Active layer view: Original / Reduced (peephole) / Optimal (BFS). */
+  mode?: LayerMode;
 };
 
 /** A frozen capture of α + settings, taken when "產生程式碼" is pressed. */
@@ -45,17 +45,17 @@ type Snapshot = {
   n: number;
   strategy: Strategy;
   walkAware: boolean;
-  reduced: boolean;
+  mode: LayerMode;
   /** Identifies the (α, settings) this snapshot was built for. */
   signature: string;
 };
 
 /** A compact fingerprint of the current α + decomposition settings. */
-function signatureOf(realization: LayeredRealization, reduced: boolean): string {
+function signatureOf(realization: LayeredRealization, mode: LayerMode): string {
   const images = realization.trajectories
     .map((t) => t[t.length - 1])
     .join(',');
-  return `${realization.strategy}|${realization.walkAware}|${reduced}|${images}`;
+  return `${realization.strategy}|${realization.walkAware}|${mode}|${images}`;
 }
 
 /**
@@ -70,14 +70,14 @@ function signatureOf(realization: LayeredRealization, reduced: boolean): string 
 export function QiskitPackageView({
   realization,
   n,
-  reduced = false,
+  mode = 'original',
 }: QiskitPackageViewProps) {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
 
   const { strategy, walkAware } = realization;
-  const signature = signatureOf(realization, reduced);
+  const signature = signatureOf(realization, mode);
   const stale = snapshot !== null && snapshot.signature !== signature;
   const hasLayers = n > 0 && realization.layers.length > 0;
 
@@ -97,7 +97,7 @@ export function QiskitPackageView({
       n,
       strategy,
       walkAware,
-      reduced,
+      mode,
       signature,
     });
   };
@@ -134,7 +134,12 @@ export function QiskitPackageView({
                 color="text.secondary"
                 sx={{ mb: 1.5 }}
               >
-                {t('qiskit.intro', { strategy, walkAware, reduced })}
+                {t('qiskit.intro', {
+                  strategy,
+                  walkAware,
+                  reduced: mode === 'reduced',
+                  optimal: mode === 'optimal',
+                })}
               </Typography>
 
               {/* The actual current α, so the user need not scroll up to check. */}
@@ -200,21 +205,21 @@ export function QiskitPackageView({
 function PackageBody({ snapshot }: { snapshot: Snapshot }) {
   const { t, lang } = useI18n();
   const [tab, setTab] = useState<'script' | 'jupyter'>('script');
-  const { cycles, n, strategy, walkAware, reduced } = snapshot;
+  const { cycles, n, strategy, walkAware, mode } = snapshot;
 
   const code = useMemo(
-    () => buildQiskitPackageCode(cycles, n, strategy, walkAware, reduced),
-    [cycles, n, strategy, walkAware, reduced],
+    () => buildQiskitPackageCode(cycles, n, strategy, walkAware, mode),
+    [cycles, n, strategy, walkAware, mode],
   );
   const cells = useMemo(
-    () => buildQiskitPackageNotebook(cycles, n, strategy, walkAware, reduced, lang),
-    [cycles, n, strategy, walkAware, reduced, lang],
+    () => buildQiskitPackageNotebook(cycles, n, strategy, walkAware, mode, lang),
+    [cycles, n, strategy, walkAware, mode, lang],
   );
   const ipynb = useMemo(() => buildIpynb(cells), [cells]);
 
   const filename = `qiskit-function-n${n}-${strategy}${
     walkAware ? '-walk' : ''
-  }${reduced ? '-reduced' : ''}`;
+  }${mode !== 'original' ? `-${mode}` : ''}`;
 
   return (
     <>

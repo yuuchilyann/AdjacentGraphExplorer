@@ -437,5 +437,56 @@ console.log('═══ Targeted: random Hamming-1 walks (walk-aware must hit) �
   }
 }
 
+// Optimal mode: imports the real src/lib/synthesis.ts (Node ≥ 22.6 strips
+// TypeScript types natively). For every permutation with n = 1..3 the BFS
+// result must be legal, land on α, never be longer than the Gray-path
+// realization, and never be shorter than the proven lower bound.
+console.log('');
+console.log('═══ Optimal (exhaustive BFS, src/lib/synthesis.ts), n = 1..3 ═══');
+{
+  let synth = null;
+  try {
+    synth = await import('../src/lib/synthesis.ts');
+  } catch (e) {
+    console.log(`  [SKIP] cannot import synthesis.ts on this Node (${process.version}): ${e.message}`);
+  }
+  if (synth) {
+    for (const n of [1, 2, 3]) {
+      let count = 0, failures = 0, sumOpt = 0, sumOrig = 0, tight = 0, maxOpt = 0;
+      const first = [];
+      for (const perm of permutationsOf(1 << n)) {
+        count++;
+        const mapping = makeMapping(perm);
+        const gates = synth.shortestCircuit(perm, n, 'mcx');
+        const layers = gates.map((g) => synth.mcxGateToSwap(g));
+        const orig = Math.min(
+          realizeLayered(mapping, n, 'above').length,
+          realizeLayered(mapping, n, 'below').length,
+        );
+        const lb = synth.legalLayerLowerBound(perm, n).bound;
+        const ok =
+          checkLegalLayers(layers).ok &&
+          verifyMapping(mapping, n, layers).ok &&
+          layers.length <= orig &&
+          layers.length >= lb;
+        if (!ok) {
+          failures++;
+          if (first.length < 3) first.push(`perm=[${perm}] opt=${layers.length} orig=${orig} lb=${lb}`);
+        }
+        sumOpt += layers.length;
+        sumOrig += orig;
+        if (layers.length === lb) tight++;
+        maxOpt = Math.max(maxOpt, layers.length);
+      }
+      console.log(
+        `  [${failures === 0 ? 'OK' : 'FAIL'}] n=${n} : ${count} tested, ${failures} failures, ` +
+          `avg layers ${(sumOrig / count).toFixed(2)} → ${(sumOpt / count).toFixed(2)}, ` +
+          `max ${maxOpt}, lower bound reached ${tight}/${count}`,
+      );
+      for (const f of first) console.log('         ↳', f);
+    }
+  }
+}
+
 console.log('');
 console.log('Done.');

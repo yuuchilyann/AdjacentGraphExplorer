@@ -568,10 +568,10 @@ export const zh = {
     '同一個 α，換不同的 gate 種類組合：按鈕上的數字是該組合下的 gate 數。除「現行」外，其餘皆為窮舉所有排列後證明最短的電路（n ≤ 3）。',
   'gatelib.opt.baseline': '現行（Gray-path）',
   'gatelib.opt.mcx': '① MCX 最佳排序',
-  'gatelib.opt.mcx-swap': '② ① + SWAP',
-  'gatelib.opt.mcx-swap-cswap': '③ ② + Fredkin',
+  'gatelib.opt.mcx-swap': '② = ① + SWAP',
+  'gatelib.opt.mcx-swap-cswap': '③ = ② + Fredkin',
   'gatelib.opt.nct': '④ X / CNOT / Toffoli',
-  'gatelib.opt.nct-swap-cswap': '⑤ ④ + SWAP + Fredkin',
+  'gatelib.opt.nct-swap-cswap': '⑤ = ④ + SWAP + Fredkin',
   'gatelib.desc.baseline':
     '目前演算法的輸出：每個 transposition 依 Gray-path 共軛展開成 2d−1 個 (n−1)-控 X，與上方 Wiring Diagram / Quantum Circuit（Original）相同。',
   'gatelib.desc.mcx':

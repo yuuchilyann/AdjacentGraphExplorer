@@ -573,10 +573,10 @@ export const en = {
     'Same α, different sets of allowed gates: the number on each button is the gate count. Except for “Current”, every circuit is the provably shortest one, found by exhaustive search over all permutations (n ≤ 3).',
   'gatelib.opt.baseline': 'Current (Gray-path)',
   'gatelib.opt.mcx': '① MCX, optimal order',
-  'gatelib.opt.mcx-swap': '② ① + SWAP',
-  'gatelib.opt.mcx-swap-cswap': '③ ② + Fredkin',
+  'gatelib.opt.mcx-swap': '② = ① + SWAP',
+  'gatelib.opt.mcx-swap-cswap': '③ = ② + Fredkin',
   'gatelib.opt.nct': '④ X / CNOT / Toffoli',
-  'gatelib.opt.nct-swap-cswap': '⑤ ④ + SWAP + Fredkin',
+  'gatelib.opt.nct-swap-cswap': '⑤ = ④ + SWAP + Fredkin',
   'gatelib.desc.baseline':
     'The current algorithm: each transposition is expanded by Gray-path conjugation into 2d−1 (n−1)-controlled X gates — identical to the wiring diagram / quantum circuit above (Original).',
   'gatelib.desc.mcx':
